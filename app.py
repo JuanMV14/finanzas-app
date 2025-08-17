@@ -179,7 +179,7 @@ if "user_id" in st.session_state:
             else:
                 agregar_credito(nombre_credito, monto_credito, tasa_interes, plazo_meses, user_id)
                st.success("✅ Crédito guardado")
-               st.stop()
+                st.stop()
 
     cdf = cargar_creditos(user_id)
     if not cdf.empty:
