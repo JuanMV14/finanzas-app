@@ -102,7 +102,6 @@ if "user_id" in st.session_state:
             st.rerun()
 
     # HISTORIAL
-    st.header("📋 Historial de Transacciones")
     def cargar_transacciones(user_id):
     try:
         res = supabase.table("transacciones").select("*").eq("user_id", user_id).order("fecha", desc=True).execute()
@@ -114,7 +113,7 @@ if "user_id" in st.session_state:
     except Exception as e:
         st.error(f"Error al cargar transacciones: {e}")
         return pd.DataFrame()
-
+        
     if df.empty:
         st.info("No hay transacciones registradas aún.")
     else:
