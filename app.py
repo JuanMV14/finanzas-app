@@ -4,14 +4,26 @@ import matplotlib.pyplot as plt
 from supabase import create_client, Client
 import datetime
 
-# ----------------- CONFIG -----------------
+# ----------------- CONFIGURACIÓN -----------------
 st.set_page_config(page_title="💰 Finanzas Personales", layout="wide")
 
-SUPABASE_URL = "https://ejsakzzbgwymptqjoigs.supabase.co"
-SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVqc2FrenpiZ3d5bXB0cWpvaWdzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUzOTQwOTMsImV4cCI6MjA3MDk3MDA5M30.IwadYpEJyQAR0zT4Qm6Ae1Q4ac3gqRkGVz0xzhRe3m0"
+SUPABASE_URL = "https://TU_PROYECTO.supabase.co"
+SUPABASE_ANON_KEY = "TU_API_KEY_AQUÍ"
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
 
 # ----------------- FUNCIONES -----------------
+def cargar_transacciones(user_id):
+    try:
+        res = supabase.table("transacciones").select("*").eq("user_id", user_id).order("fecha", desc=True).execute()
+        df = pd.DataFrame(res.data or [])
+        if not df.empty:
+            df["fecha"] = pd.to_datetime(df["fecha"]).dt.date
+            df["monto"] = pd.to_numeric(df["monto"])
+        return df
+    except Exception as e:
+        st.error(f"Error al cargar transacciones: {e}")
+        return pd.DataFrame()
+
 def agregar_transaccion(fecha, tipo, categoria, monto, user_id):
     payload = {
         "fecha": fecha.isoformat(),
@@ -101,19 +113,10 @@ if "user_id" in st.session_state:
             st.sidebar.success("✅ Transacción guardada")
             st.rerun()
 
-    # HISTORIAL
-    def cargar_transacciones(user_id):
-    try:
-        res = supabase.table("transacciones").select("*").eq("user_id", user_id).order("fecha", desc=True).execute()
-        df = pd.DataFrame(res.data or [])
-        if not df.empty:
-            df["fecha"] = pd.to_datetime(df["fecha"]).dt.date
-            df["monto"] = pd.to_numeric(df["monto"])
-        return df
-    except Exception as e:
-        st.error(f"Error al cargar transacciones: {e}")
-        return pd.DataFrame()
-        
+    # HISTORIAL DE TRANSACCIONES
+    st.header("📋 Historial de Transacciones")
+    df = cargar_transacciones(user_id)
+
     if df.empty:
         st.info("No hay transacciones registradas aún.")
     else:
@@ -144,7 +147,7 @@ if "user_id" in st.session_state:
             mime="text/csv"
         )
 
-    # CRÉDITOS
+    # GESTIÓN DE CRÉDITOS
     st.header("💳 Gestión de Créditos")
     with st.expander("➕ Agregar nuevo crédito"):
         nombre_credito = st.text_input("Nombre del crédito")
