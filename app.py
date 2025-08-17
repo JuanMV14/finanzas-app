@@ -8,17 +8,21 @@ import datetime
 st.set_page_config(page_title="💰 Finanzas Personales", layout="wide")
 
 SUPABASE_URL = "https://ejsakzzbgwymptqjoigs.supabase.co"
-SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVqc2FrenpiZ3d5bXB0cWpvaWdzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUzOTQwOTMsImV4cCI6MjA3MDk3MDA5M30.IwadYpEJyQAR0zT4Qm6Ae1Q4ac3gqRkGVz0xzhRe3m0"
+SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
 
 # ----------------- FUNCIONES -----------------
 def cargar_transacciones(user_id):
-    res = supabase.table("transacciones").select("*").eq("user_id", user_id).order("fecha", desc=True).execute()
-    df = pd.DataFrame(res.data or [])
-    if not df.empty:
-        df["fecha"] = pd.to_datetime(df["fecha"]).dt.date
-        df["monto"] = pd.to_numeric(df["monto"])
-    return df
+    try:
+        res = supabase.table("transacciones").select("*").eq("user_id", user_id).order("fecha", desc=True).execute()
+        df = pd.DataFrame(res.data or [])
+        if not df.empty:
+            df["fecha"] = pd.to_datetime(df["fecha"]).dt.date
+            df["monto"] = pd.to_numeric(df["monto"])
+        return df
+    except Exception as e:
+        st.error(f"Error al cargar transacciones: {e}")
+        return pd.DataFrame()
 
 def agregar_transaccion(fecha, tipo, categoria, monto, user_id):
     payload = {
@@ -28,14 +32,17 @@ def agregar_transaccion(fecha, tipo, categoria, monto, user_id):
         "monto": float(monto),
         "user_id": user_id,
     }
-    supabase.table("transacciones").insert(payload).execute()
+    try:
+        supabase.table("transacciones").insert(payload).execute()
+    except Exception as e:
+        st.error(f"Error al guardar transacción: {e}")
 
-def cargar_credito(user_id):
+def cargar_creditos(user_id):
     try:
         res = supabase.table("credito").select("*").eq("user_id", user_id).order("id", desc=True).execute()
         return pd.DataFrame(res.data or [])
     except Exception as e:
-        st.error(f"Error al cargar crédito: {e}")
+        st.error(f"Error al cargar créditos: {e}")
         return pd.DataFrame()
 
 def agregar_credito(nombre, monto, tasa, plazo, user_id):
@@ -46,7 +53,10 @@ def agregar_credito(nombre, monto, tasa, plazo, user_id):
         "plazo_meses": int(plazo),
         "user_id": user_id,
     }
-    supabase.table("credito").insert(payload).execute()
+    try:
+        supabase.table("credito").insert(payload).execute()
+    except Exception as e:
+        st.error(f"Error al guardar crédito: {e}")
 
 # ----------------- AUTENTICACIÓN -----------------
 if "user_id" not in st.session_state:
@@ -153,7 +163,7 @@ if "user_id" in st.session_state:
                 st.success("✅ Crédito guardado")
                 st.rerun()
 
-    cdf = cargar_credito(user_id)
+    cdf = cargar_creditos(user_id)
     if not cdf.empty:
         st.subheader("Mis créditos")
         st.dataframe(cdf[["nombre", "monto", "tasa_interes", "plazo_meses"]], use_container_width=True)
@@ -177,24 +187,4 @@ if "user_id" in st.session_state:
         c1, c2, c3 = st.columns(3)
         c1.metric("Cuota mensual", f"${cuota:,.2f}")
         c2.metric("Total pagado", f"${total_pagado:,.2f}")
-        c3.metric("Interés total", f"${interes_total:,.2f}")
-
-# Simulador de pago extra mensual
-extra = st.number_input("Pago extra mensual (simulación)", min_value=0.0, format="%.2f")
-
-if extra > 0:
-    saldo = principal
-    r = (rate_annual / 100.0) / 12.0  # Tasa mensual
-    nueva_cuota = cuota + extra
-    meses = 0
-
-    while saldo > 0 and meses < 10000:
-        interes_mes = saldo * r
-        principal_mes = nueva_cuota - interes_mes
-        if principal_mes <= 0:
-            break
-        saldo -= principal_mes
-        meses += 1
-
-    st.info(f"🏁 Con pago extra terminarías en **{meses}** meses (aprox.).")
-
+        c3.metric("Intereses totales", f"${interes_total:,.2f}")
