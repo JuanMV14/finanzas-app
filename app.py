@@ -8,7 +8,7 @@ import datetime
 st.set_page_config(page_title="💰 Finanzas Personales", layout="wide")
 
 SUPABASE_URL = "https://ejsakzzbgwymptqjoigs.supabase.co"
-SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVqc2FrenpiZ3d5bXB0cWpvaWdzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUzOTQwOTMsImV4cCI6MjA3MDk3MDA5M30.IwadYpEJyQAR0zT4Qm6Ae1Q4ac3gqRkGVz0xzhRe3m0"
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
 
 # ----------------- FUNCIONES -----------------
