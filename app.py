@@ -8,7 +8,7 @@ import datetime
 st.set_page_config(page_title="💰 Finanzas Personales", layout="wide")
 
 SUPABASE_URL = "https://ejsakzzbgwymptqjoigs.supabase.co"
-SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVqc2FrenpiZ3d5bXB0cWpvaWdzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUzOTQwOTMsImV4cCI6MjA3MDk3MDA5M30.IwadYpEJyQAR0zT4Qm6Ae1Q4ac3gqRkGVz0xzhRe3m0"
+SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
 
 # ----------------- FUNCIONES -----------------
@@ -25,6 +25,13 @@ def cargar_transacciones(user_id):
         return pd.DataFrame()
 
 def agregar_transaccion(fecha, tipo, categoria, monto, user_id):
+    uid_actual = supabase.auth.get_user().user.id
+    if user_id != uid_actual:
+        st.error("⚠️ UID no coincide con el usuario autenticado. Transacción bloqueada.")
+        st.write("UID desde sesión:", user_id)
+        st.write("UID desde Supabase:", uid_actual)
+        return
+
     payload = {
         "fecha": fecha.isoformat(),
         "tipo": tipo,
@@ -33,13 +40,12 @@ def agregar_transaccion(fecha, tipo, categoria, monto, user_id):
         "user_id": user_id,
     }
     try:
-        st.write("🛠️ Insertando con user_id:", user_id)
         res = supabase.table("transacciones").insert([payload]).execute()
-        st.write("🧾 Respuesta Supabase:", res)
         if res.status_code == 201:
             st.success("✅ Transacción guardada correctamente")
         else:
             st.error("❌ Error al guardar transacción")
+            st.write("Respuesta Supabase:", res)
     except Exception as e:
         st.error("❌ Error al guardar transacción")
         st.write(str(e))
@@ -74,8 +80,8 @@ if "user_id" not in st.session_state:
     if st.sidebar.button("Login"):
         try:
             res = supabase.auth.sign_in_with_password({"email": email, "password": password})
-            usuario = res.user
-            st.session_state["user_id"] = res.user.id
+            usuario = supabase.auth.get_user().user
+            st.session_state["user_id"] = usuario.id
             st.sidebar.success(f"Bienvenido {email}")
             st.experimental_rerun()
         except Exception as e:
@@ -118,7 +124,7 @@ if "user_id" in st.session_state:
             st.sidebar.error("El monto debe ser mayor que 0.")
         else:
             agregar_transaccion(fecha, tipo, categoria, monto, user_id)
-            st.stop()  # Espera a que se muestre el resultado antes de recargar
+            st.stop()
 
     # HISTORIAL DE TRANSACCIONES
     st.header("📋 Historial de Transacciones")
@@ -193,5 +199,3 @@ if "user_id" in st.session_state:
 
         c1, c2, c3 = st.columns(3)
         c1.metric("Cuota mensual", f"${cuota:,.2f}")
-        c2.metric("Total pagado", f"${total_pagado:,.2f}")
-        c3.metric("Intereses totales", f"${interes_total:,.2f}")
