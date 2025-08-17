@@ -59,7 +59,7 @@ def agregar_credito(nombre, monto, tasa, plazo):
 # ----------------- SIDEBAR: NUEVA TRANSACCIÓN -----------------
 st.sidebar.header("📥 Nueva Transacción")
 tipo = st.sidebar.selectbox("Tipo", ["Ingreso", "Gasto"])
-categoria = st.sidebar.selectbox("Categoría", ["Salario", "Alimentación", "Transporte", "Ocio", "Servicios", "Deudas", "Otros"])
+categoria = st.sidebar.selectbox("Categoría", ["Salario", "Comisiones", "Alimentación", "Transporte", "Ocio", "Servicios", "Deudas", "Otros"])
 monto = st.sidebar.number_input("Monto", min_value=0.0, format="%.2f")
 fecha = st.sidebar.date_input("Fecha", datetime.date.today())
 
