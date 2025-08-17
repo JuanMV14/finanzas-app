@@ -97,8 +97,8 @@ if "user_id" in st.session_state:
     st.header("📋 Historial de Transacciones")
     df = cargar_transacciones(user_id)
 
-    if not cdf.empty:
-        st.subheader("Mis créditos")
+    if df.empty:
+        st.info("No hay transacciones registradas aún.")
     else:
         st.dataframe(df, use_container_width=True)
 
@@ -143,44 +143,44 @@ if "user_id" in st.session_state:
                 st.success("✅ Crédito guardado")
                 st.rerun()
 
+    # SIMULADOR DE CRÉDITOS
     cdf = cargar_creditos(user_id)
-     if not cdf.empty:
+    if not cdf.empty:
         st.subheader("Mis créditos")
-    st.dataframe(cdf[["nombre","monto","tasa_interes","plazo_meses"]], use_container_width=True)
+        st.dataframe(cdf[["nombre", "monto", "tasa_interes", "plazo_meses"]], use_container_width=True)
 
-    st.subheader("🧮 Simulador de cuotas")
-    sel = st.selectbox("Selecciona un crédito", cdf["nombre"].tolist())
-    row = cdf[cdf["nombre"] == sel].iloc[0]
-    principal = float(row["monto"])
-    rate_annual = float(row["tasa_interes"])
-    term = int(row["plazo_meses"])
+        st.subheader("🧮 Simulador de cuotas")
+        sel = st.selectbox("Selecciona un crédito", cdf["nombre"].tolist())
+        row = cdf[cdf["nombre"] == sel].iloc[0]
+        principal = float(row["monto"])
+        rate_annual = float(row["tasa_interes"])
+        term = int(row["plazo_meses"])
 
-    if rate_annual == 0:
-        cuota = principal / term
-    else:
-        r = (rate_annual / 100.0) / 12.0
-        cuota = principal * (r * (1 + r)**term) / ((1 + r)**term - 1)
+        if rate_annual == 0:
+            cuota = principal / term
+        else:
+            r = (rate_annual / 100.0) / 12.0
+            cuota = principal * (r * (1 + r)**term) / ((1 + r)**term - 1)
 
-    total_pagado = cuota * term
-    interes_total = total_pagado - principal
+        total_pagado = cuota * term
+        interes_total = total_pagado - principal
 
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Cuota mensual", f"${cuota:,.2f}")
-    c2.metric("Total pagado", f"${total_pagado:,.2f}")
-    c3.metric("Interés total", f"${interes_total:,.2f}")
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Cuota mensual", f"${cuota:,.2f}")
+        c2.metric("Total pagado", f"${total_pagado:,.2f}")
+        c3.metric("Interés total", f"${interes_total:,.2f}")
 
-    # 👇 Esta línea debe estar dentro del mismo bloque
-    extra = st.number_input("Pago extra mensual (simulación)", min_value=0.0, format="%.2f")
-    if extra > 0:
-        saldo = principal
-        r = (rate_annual / 100.0) / 12.0
-        nueva_cuota = cuota + extra
-        meses = 0
-        while saldo > 0 and meses < 10000:
-            interes_mes = saldo * r
-            principal_mes = nueva_cuota - interes_mes
-            if principal_mes <= 0:
-                break
-            saldo -= principal_mes
-            meses += 1
-        st.info(f"🏁 Con pago extra terminarías en **{meses}** meses (aprox.).")
+        extra = st.number_input("Pago extra mensual (simulación)", min_value=0.0, format="%.2f")
+        if extra > 0:
+            saldo = principal
+            r = (rate_annual / 100.0) / 12.0
+            nueva_cuota = cuota + extra
+            meses = 0
+            while saldo > 0 and meses < 10000:
+                interes_mes = saldo * r
+                principal_mes = nueva_cuota - interes_mes
+                if principal_mes <= 0:
+                    break
+                saldo -= principal_mes
+                meses += 1
+            st.info(f"🏁 Con pago extra terminarías en **{meses}** meses (aprox.).")
