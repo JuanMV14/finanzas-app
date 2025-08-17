@@ -97,8 +97,8 @@ if "user_id" in st.session_state:
     st.header("📋 Historial de Transacciones")
     df = cargar_transacciones(user_id)
 
-    if df.empty:
-        st.info("No hay transacciones registradas aún.")
+    if not cdf.empty:
+    st.subheader("Mis créditos")
     else:
         st.dataframe(df, use_container_width=True)
 
