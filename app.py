@@ -33,7 +33,7 @@ def agregar_transaccion(fecha, tipo, categoria, monto, user_id):
         "user_id": user_id,
     }
     try:
-        supabase.table("transacciones").insert(payload).execute()
+        supabase.table("transacciones").insert([payload]).execute()
     except Exception as e:
         st.error(f"Error al guardar transacción: {e}")
 
