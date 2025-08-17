@@ -25,7 +25,12 @@ def cargar_transacciones(user_id):
         return pd.DataFrame()
 
 def agregar_transaccion(fecha, tipo, categoria, monto, user_id):
-    uid_actual = supabase.auth.get_user().user.id
+    user_data = supabase.auth.get_user()
+    if not user_data or not user_data.user:
+        st.error("⚠️ No hay sesión activa. No se puede guardar la transacción.")
+        return
+
+    uid_actual = user_data.user.id
     if user_id != uid_actual:
         st.error("⚠️ UID no coincide con el usuario autenticado. Transacción bloqueada.")
         st.write("UID desde sesión:", user_id)
