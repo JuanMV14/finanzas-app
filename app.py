@@ -170,4 +170,17 @@ if "user_id" in st.session_state:
         c3.metric("Interés total", f"${interes_total:,.2f}")
 
         extra = st.number_input("Pago extra mensual (simulación)", min_value=0.0, format="%.2f")
-        if extra > 0:
+                if extra > 0:
+            saldo = principal
+            r = (rate_annual / 100.0) / 12.0
+            nueva_cuota = cuota + extra
+            meses = 0
+            while saldo > 0 and meses < 10000:
+                interes_mes = saldo * r
+                principal_mes = nueva_cuota - interes_mes
+                if principal_mes <= 0:
+                    break
+                saldo -= principal_mes
+                meses += 1
+            st.info(f"🏁 Con pago extra terminarías en **{meses}** meses (aprox.).")
+
