@@ -33,8 +33,13 @@ def agregar_transaccion(fecha, tipo, categoria, monto, user_id):
         "user_id": user_id,
     }
     try:
+        st.write("🛠️ Insertando con user_id:", user_id)
         res = supabase.table("transacciones").insert([payload]).execute()
-        st.write("Respuesta Supabase:", res)
+        st.write("🧾 Respuesta Supabase:", res)
+        if res.status_code == 201:
+            st.success("✅ Transacción guardada correctamente")
+        else:
+            st.error("❌ Error al guardar transacción")
     except Exception as e:
         st.error("❌ Error al guardar transacción")
         st.write(str(e))
@@ -72,7 +77,7 @@ if "user_id" not in st.session_state:
             usuario = res.user
             st.session_state["user_id"] = res.user.id
             st.sidebar.success(f"Bienvenido {email}")
-            st.rerun()
+            st.experimental_rerun()
         except Exception as e:
             st.sidebar.error(f"Error al iniciar sesión: {e}")
 
@@ -89,9 +94,10 @@ if "user_id" not in st.session_state:
 else:
     st.sidebar.success("🔓 Sesión iniciada")
     st.sidebar.write("Ya estás autenticado.")
+    st.sidebar.write("🧠 Tu user_id:", st.session_state["user_id"])
     if st.sidebar.button("Cerrar sesión"):
         del st.session_state["user_id"]
-        st.rerun()
+        st.experimental_rerun()
 
 # ----------------- APP PRINCIPAL -----------------
 if "user_id" in st.session_state:
@@ -112,8 +118,7 @@ if "user_id" in st.session_state:
             st.sidebar.error("El monto debe ser mayor que 0.")
         else:
             agregar_transaccion(fecha, tipo, categoria, monto, user_id)
-            st.sidebar.success("✅ Transacción guardada")
-            st.rerun()
+            st.stop()  # Espera a que se muestre el resultado antes de recargar
 
     # HISTORIAL DE TRANSACCIONES
     st.header("📋 Historial de Transacciones")
@@ -163,7 +168,7 @@ if "user_id" in st.session_state:
             else:
                 agregar_credito(nombre_credito, monto_credito, tasa_interes, plazo_meses, user_id)
                 st.success("✅ Crédito guardado")
-                st.rerun()
+                st.experimental_rerun()
 
     cdf = cargar_creditos(user_id)
     if not cdf.empty:
