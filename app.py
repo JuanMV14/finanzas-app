@@ -1,3 +1,12 @@
+from supabase import create_client
+import streamlit as st
+
+# Aquí van tus credenciales de Supabase
+url = "https://ejsakzzbgwymptqjoigs.supabase.co"
+key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVqc2FrenpiZ3d5bXB0cWpvaWdzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUzOTQwOTMsImV4cCI6MjA3MDk3MDA5M30.IwadYpEJyQAR0zT4Qm6Ae1Q4ac3gqRkGVz0xzhRe3m0"
+supabase = create_client(url, key)
+
+
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
