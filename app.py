@@ -144,8 +144,8 @@ if "user_id" in st.session_state:
                 st.rerun()
 
     cdf = cargar_creditos(user_id)
-    if not cdf.empty:
-    st.subheader("Mis créditos")
+     if not cdf.empty:
+        st.subheader("Mis créditos")
     st.dataframe(cdf[["nombre","monto","tasa_interes","plazo_meses"]], use_container_width=True)
 
     st.subheader("🧮 Simulador de cuotas")
