@@ -30,12 +30,12 @@ def agregar_transaccion(fecha, tipo, categoria, monto, user_id):
     }
     supabase.table("transacciones").insert(payload).execute()
 
-def cargar_creditos(user_id):
+def cargar_credito(user_id):
     try:
-        res = supabase.table("creditos").select("*").eq("user_id", user_id).order("id", desc=True).execute()
+        res = supabase.table("credito").select("*").eq("user_id", user_id).order("id", desc=True).execute()
         return pd.DataFrame(res.data or [])
     except Exception as e:
-        st.error(f"Error al cargar créditos: {e}")
+        st.error(f"Error al cargar crédito: {e}")
         return pd.DataFrame()
 
 def agregar_credito(nombre, monto, tasa, plazo, user_id):
@@ -46,7 +46,7 @@ def agregar_credito(nombre, monto, tasa, plazo, user_id):
         "plazo_meses": int(plazo),
         "user_id": user_id,
     }
-    supabase.table("creditos").insert(payload).execute()
+    supabase.table("credito").insert(payload).execute()
 
 # ----------------- AUTENTICACIÓN -----------------
 if "user_id" not in st.session_state:
@@ -153,7 +153,7 @@ if "user_id" in st.session_state:
                 st.success("✅ Crédito guardado")
                 st.rerun()
 
-    cdf = cargar_creditos(user_id)
+    cdf = cargar_credito(user_id)
     if not cdf.empty:
         st.subheader("Mis créditos")
         st.dataframe(cdf[["nombre", "monto", "tasa_interes", "plazo_meses"]], use_container_width=True)
