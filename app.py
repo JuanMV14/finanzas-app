@@ -179,7 +179,8 @@ if "user_id" in st.session_state:
         c2.metric("Total pagado", f"${total_pagado:,.2f}")
         c3.metric("Interés total", f"${interes_total:,.2f}")
 
-        extra = st.number_input("Pago extra mensual (simulación)", min_value=0.0, format="%.2f")
+# Simulador de pago extra mensual
+extra = st.number_input("Pago extra mensual (simulación)", min_value=0.0, format="%.2f")
 
 if extra > 0:
     saldo = principal
@@ -196,3 +197,4 @@ if extra > 0:
         meses += 1
 
     st.info(f"🏁 Con pago extra terminarías en **{meses}** meses (aprox.).")
+
