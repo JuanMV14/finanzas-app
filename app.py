@@ -24,6 +24,8 @@ def cargar_transacciones(user_id):
         st.error(f"Error al cargar transacciones: {e}")
         return pd.DataFrame()
 
+st.sidebar.write("Debug user_id:", user_id)
+
 def agregar_transaccion(fecha, tipo, categoria, monto, user_id):
     payload = {
         "fecha": fecha.isoformat(),
