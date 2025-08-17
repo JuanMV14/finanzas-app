@@ -11,33 +11,6 @@ SUPABASE_URL = "https://ejsakzzbgwymptqjoigs.supabase.co"
 SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVqc2FrenpiZ3d5bXB0cWpvaWdzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUzOTQwOTMsImV4cCI6MjA3MDk3MDA5M30.IwadYpEJyQAR0zT4Qm6Ae1Q4ac3gqRkGVz0xzhRe3m0"
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
 
-# ----------------- LOGIN -----------------
-st.sidebar.header("🔐 Iniciar sesión")
-email = st.sidebar.text_input("Email")
-password = st.sidebar.text_input("Contraseña", type="password")
-usuario = None
-
-if st.sidebar.button("Login"):
-    try:
-        res = supabase.auth.sign_in_with_password({"email": email, "password": password})
-        usuario = res.user
-        st.session_state["user_id"] = usuario.id
-        st.sidebar.success(f"Bienvenido {email}")
-    except Exception as e:
-        st.sidebar.error(f"Error al iniciar sesión: {e}")
-
-# ----------------- REGISTRO -----------------
-st.sidebar.header("📝 Registrarse")
-new_email = st.sidebar.text_input("Nuevo email")
-new_password = st.sidebar.text_input("Nueva contraseña", type="password")
-
-if st.sidebar.button("Crear cuenta"):
-    try:
-        res = supabase.auth.sign_up({"email": new_email, "password": new_password})
-        st.sidebar.success("✅ Cuenta creada. Ahora inicia sesión.")
-    except Exception as e:
-        st.sidebar.error(f"Error al registrar: {e}")
-
 # ----------------- FUNCIONES -----------------
 def cargar_transacciones(user_id):
     res = supabase.table("transacciones").select("*").eq("user_id", user_id).order("fecha", desc=True).execute()
@@ -58,8 +31,12 @@ def agregar_transaccion(fecha, tipo, categoria, monto, user_id):
     supabase.table("transacciones").insert(payload).execute()
 
 def cargar_creditos(user_id):
-    res = supabase.table("creditos").select("*").eq("user_id", user_id).order("id", desc=True).execute()
-    return pd.DataFrame(res.data or [])
+    try:
+        res = supabase.table("creditos").select("*").eq("user_id", user_id).order("id", desc=True).execute()
+        return pd.DataFrame(res.data or [])
+    except Exception as e:
+        st.error(f"Error al cargar créditos: {e}")
+        return pd.DataFrame()
 
 def agregar_credito(nombre, monto, tasa, plazo, user_id):
     payload = {
@@ -70,6 +47,39 @@ def agregar_credito(nombre, monto, tasa, plazo, user_id):
         "user_id": user_id,
     }
     supabase.table("creditos").insert(payload).execute()
+
+# ----------------- AUTENTICACIÓN -----------------
+if "user_id" not in st.session_state:
+    st.sidebar.header("🔐 Iniciar sesión")
+    email = st.sidebar.text_input("Email")
+    password = st.sidebar.text_input("Contraseña", type="password")
+
+    if st.sidebar.button("Login"):
+        try:
+            res = supabase.auth.sign_in_with_password({"email": email, "password": password})
+            usuario = res.user
+            st.session_state["user_id"] = usuario.id
+            st.sidebar.success(f"Bienvenido {email}")
+            st.rerun()
+        except Exception as e:
+            st.sidebar.error(f"Error al iniciar sesión: {e}")
+
+    st.sidebar.header("📝 Registrarse")
+    new_email = st.sidebar.text_input("Nuevo email")
+    new_password = st.sidebar.text_input("Nueva contraseña", type="password")
+
+    if st.sidebar.button("Crear cuenta"):
+        try:
+            res = supabase.auth.sign_up({"email": new_email, "password": new_password})
+            st.sidebar.success("✅ Cuenta creada. Ahora inicia sesión.")
+        except Exception as e:
+            st.sidebar.error(f"Error al registrar: {e}")
+else:
+    st.sidebar.success("🔓 Sesión iniciada")
+    st.sidebar.write("Ya estás autenticado.")
+    if st.sidebar.button("Cerrar sesión"):
+        del st.session_state["user_id"]
+        st.rerun()
 
 # ----------------- APP PRINCIPAL -----------------
 if "user_id" in st.session_state:
@@ -143,7 +153,6 @@ if "user_id" in st.session_state:
                 st.success("✅ Crédito guardado")
                 st.rerun()
 
-    # SIMULADOR DE CRÉDITOS
     cdf = cargar_creditos(user_id)
     if not cdf.empty:
         st.subheader("Mis créditos")
@@ -171,16 +180,19 @@ if "user_id" in st.session_state:
         c3.metric("Interés total", f"${interes_total:,.2f}")
 
         extra = st.number_input("Pago extra mensual (simulación)", min_value=0.0, format="%.2f")
-        if extra > 0:
-            saldo = principal
-            r = (rate_annual / 100.0) / 12.0
-            nueva_cuota = cuota + extra
-            meses = 0
-            while saldo > 0 and meses < 10000:
-                interes_mes = saldo * r
-                principal_mes = nueva_cuota - interes_mes
-                if principal_mes <= 0:
-                    break
-                saldo -= principal_mes
-                meses += 1
-            st.info(f"🏁 Con pago extra terminarías en **{meses}** meses (aprox.).")
+
+if extra > 0:
+    saldo = principal
+    r = (rate_annual / 100.0) / 12.0  # Tasa mensual
+    nueva_cuota = cuota + extra
+    meses = 0
+
+    while saldo > 0 and meses < 10000:
+        interes_mes = saldo * r
+        principal_mes = nueva_cuota - interes_mes
+        if principal_mes <= 0:
+            break
+        saldo -= principal_mes
+        meses += 1
+
+    st.info(f"🏁 Con pago extra terminarías en **{meses}** meses (aprox.).")
