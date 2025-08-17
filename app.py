@@ -70,7 +70,7 @@ if "user_id" not in st.session_state:
         try:
             res = supabase.auth.sign_in_with_password({"email": email, "password": password})
             usuario = res.user
-            st.session_state["user_id"] = res.session.user_id
+            st.session_state["user_id"] = res.user.id
             st.sidebar.success(f"Bienvenido {email}")
             st.rerun()
         except Exception as e:
