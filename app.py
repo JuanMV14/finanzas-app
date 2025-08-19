@@ -156,14 +156,19 @@ with col_left:
     with st.form("form_trans"):
         tipo = st.selectbox("Tipo", ["Ingreso", "Gasto", "Credito"])
 
-        categorias_por_tipo = {
-            "Ingreso": ["Salario", "Comisión", "Venta", "Otro"],
-            "Gasto": ["Comida", "Transporte", "Servicios", "Entretenimiento", "Otro"],
-            "Credito": ["Tarjeta de crédito", "Préstamo", "Tecnomecánica", "Otro"]
-        }
-
-        categorias = categorias_por_tipo.get(tipo, [])
-        categoria = st.selectbox("Categoría", categorias)
+        if tipo == "Ingreso":
+            categoria = st.selectbox("Categoría", [
+                "Salario", "Comisión", "Venta", "Otro"
+            ])
+        elif tipo == "Gasto":
+            categoria = st.selectbox("Categoría", [
+                "Comida", "Transporte", "Servicios", "Entretenimiento", "Servicio públicos",
+                "Ocio", "Gasolina", "Reparación moto", "Moto", "Ropa", "Mom", "Dad", "Otro"
+            ])
+        else:  # Crédito
+            categoria = st.selectbox("Categoría", [
+                "Tarjeta de crédito", "Préstamo", "Tecnomecánica", "Otro"
+            ])
 
         if categoria == "Otro":
             categoria_personalizada = st.text_input("Especifica la categoría")
@@ -188,7 +193,6 @@ with col_left:
                     st.rerun()
                 else:
                     st.error(f"⚠️ No se pudo guardar. Respuesta: {res}")
-
 
 with col_right:
     st.header("➕ Nuevo crédito")
