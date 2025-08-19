@@ -162,21 +162,27 @@ with col_left:
         else:
             categoria = st.selectbox("Categoría", ["Tarjeta de crédito", "Préstamo", "Tecnomecánica", "Otro"])
 
+        if categoria == "Otro":
+            categoria = st.text_input("Especifica la categoría")
+
         monto = st.number_input("Monto", min_value=0.01, step=0.01)
         fecha = st.date_input("Fecha", value=date.today())
         submitted = st.form_submit_button("Guardar transacción")
 
         if submitted:
-            res = insertar_transaccion(user_id, tipo, categoria, monto, fecha)
-            if isinstance(res, dict) and res.get("error"):
-                st.error(f"❌ Error al guardar: {res['error']}")
+            if not categoria:
+                st.error("⚠️ Debes ingresar una categoría.")
             else:
-                ok = getattr(res, "data", None) or (res.get("data") if isinstance(res, dict) else None)
-                if ok:
-                    st.success("✅ Transacción guardada")
-                    st.rerun()
+                res = insertar_transaccion(user_id, tipo, categoria, monto, fecha)
+                if isinstance(res, dict) and res.get("error"):
+                    st.error(f"❌ Error al guardar: {res['error']}")
                 else:
-                    st.error(f"⚠️ No se pudo guardar. Respuesta: {res}")
+                    ok = getattr(res, "data", None) or (res.get("data") if isinstance(res, dict) else None)
+                    if ok:
+                        st.success("✅ Transacción guardada")
+                        st.rerun()
+                    else:
+                        st.error(f"⚠️ No se pudo guardar. Respuesta: {res}")
 
 with col_right:
     st.header("➕ Nuevo crédito")
@@ -262,11 +268,23 @@ if not df.empty:
     if not df_creditos.empty:
         fig.add_trace(go.Scatter(x=df_creditos["periodo"], y=df_creditos["monto"], mode="lines+markers", line=dict(color="#636EFA", width=3), marker=dict(size=10, color="#636EFA", line=dict(width=2, color="#FFFFFF")), name="Créditos"))
 
-    fig.update_layout(template="plotly_dark", paper_bgcolor="#1E1E2F", plot_bgcolor="#1E1E2F", font=dict(color="#E4E4E7", family="Arial"), margin=dict(l=40, r=20, t=50, b=40), title=dict(text="📊 Ingresos y Gastos", font=dict(size=22, color="#FFFFFF"), x=0.5), xaxis=dict(showgrid=False, zeroline=False, linecolor="#444"), yaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.1)", zeroline=False, linecolor="#444"))
+    fig.update_layout(template="plotly_dark", paper_bgcolor="#1E1E2F", plot_bgcolor="#1E1E2F", font=dict(color="#E4E4E7", family="Arial"), margin=dict(l=40, r=20, t=50, b=40), title=dict(text="📊 Ingresos, Gastos y Créditos", font=dict(size=22, color="#FFFFFF"), x=0.5), xaxis=dict(showgrid=False, zeroline=False, linecolor="#444"), yaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.1)", zeroline=False, linecolor="#444"))
 
     st.plotly_chart(fig, use_container_width=True)
 else:
     st.info("No hay transacciones registradas aún para mostrar el dashboard.")
+
+# ==============================
+# TABLA DE CRÉDITOS
+# ==============================
+st.header("💳 Mis créditos")
+if creditos:
+    dfc = pd.DataFrame(creditos)
+    st.dataframe(dfc[["id", "nombre", "monto", "tasa_interes", "plazo_meses"]], use_container_width=True)
+    total_creditos = dfc["monto"].sum()
+    st.success(f"Total créditos: ${total_creditos:,.2f}")
+else:
+    st.info("No hay créditos registrados.")
 
 # -------------------
 # FIRMA
