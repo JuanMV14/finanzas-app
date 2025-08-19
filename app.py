@@ -170,11 +170,14 @@ with col_left:
     with st.form("form_trans"):
         categoria_seleccionada = st.selectbox("Categoría", categorias)
 
-        categoria_personalizada = ""
+        # Mostrar cajita de texto si se selecciona "Otro"
         if categoria_seleccionada == "Otro":
-            categoria_personalizada = st.text_input("Especifica la categoría")
+            categoria_personalizada = st.text_input("📝 Escribe tu categoría personalizada")
+        else:
+            categoria_personalizada = ""
 
-        categoria_final = categoria_personalizada if categoria_seleccionada == "Otro" and categoria_personalizada else categoria_seleccionada
+        # Usar la categoría personalizada si fue escrita
+        categoria_final = categoria_personalizada if categoria_personalizada else categoria_seleccionada
 
         monto = st.number_input("Monto", min_value=0.01, step=0.01)
         fecha = st.date_input("Fecha", value=date.today())
