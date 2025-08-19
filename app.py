@@ -223,7 +223,7 @@ with col_right:
                 ok = getattr(r, "data", None) or (r.get("data") if isinstance(r, dict) else None)
                 if ok:
                     st.success("✅ Crédito guardado")
-                    st.experimental_rerun()
+                    st.rerun()
                 else:
                     st.error(f"⚠️ No se pudo guardar el crédito. Respuesta: {r}")
 
