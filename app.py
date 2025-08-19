@@ -266,7 +266,7 @@ if transacciones:
                 st.error(f"Error al eliminar: {r['error']}")
             else:
                 st.success("Transacción eliminada")
-                st.experimental_rerun()
+                st.rerun()
 else:
     st.info("No hay transacciones registradas.")
 
