@@ -155,34 +155,40 @@ with col_left:
     st.header("➕ Nueva transacción")
     with st.form("form_trans"):
         tipo = st.selectbox("Tipo", ["Ingreso", "Gasto", "Credito"])
-        if tipo == "Ingreso":
-            categoria = st.selectbox("Categoría", ["Salario", "Comisión", "Venta", "Otro"])
-        elif tipo == "Gasto":
-            categoria = st.selectbox("Categoría", ["Comida", "Transporte", "Servicios", "Entretenimiento", "Otro"])
-        else:
-            categoria = st.selectbox("Categoría", ["Tarjeta de crédito", "Préstamo", "Tecnomecánica", "Otro"])
+
+        categorias_por_tipo = {
+            "Ingreso": ["Salario", "Comisión", "Venta", "Otro"],
+            "Gasto": ["Comida", "Transporte", "Servicios", "Entretenimiento", "Otro"],
+            "Credito": ["Tarjeta de crédito", "Préstamo", "Tecnomecánica", "Otro"]
+        }
+
+        categorias = categorias_por_tipo.get(tipo, [])
+        categoria = st.selectbox("Categoría", categorias)
 
         if categoria == "Otro":
-            categoria = st.text_input("Especifica la categoría")
+            categoria_personalizada = st.text_input("Especifica la categoría")
+            if categoria_personalizada:
+                categoria = categoria_personalizada
 
         monto = st.number_input("Monto", min_value=0.01, step=0.01)
         fecha = st.date_input("Fecha", value=date.today())
         submitted = st.form_submit_button("Guardar transacción")
 
-        if submitted:
-            if not categoria:
-                st.error("⚠️ Debes ingresar una categoría.")
+    if submitted:
+        if not categoria:
+            st.error("⚠️ Debes ingresar una categoría.")
+        else:
+            res = insertar_transaccion(user_id, tipo, categoria, monto, fecha)
+            if isinstance(res, dict) and res.get("error"):
+                st.error(f"❌ Error al guardar: {res['error']}")
             else:
-                res = insertar_transaccion(user_id, tipo, categoria, monto, fecha)
-                if isinstance(res, dict) and res.get("error"):
-                    st.error(f"❌ Error al guardar: {res['error']}")
+                ok = getattr(res, "data", None) or (res.get("data") if isinstance(res, dict) else None)
+                if ok:
+                    st.success("✅ Transacción guardada")
+                    st.rerun()
                 else:
-                    ok = getattr(res, "data", None) or (res.get("data") if isinstance(res, dict) else None)
-                    if ok:
-                        st.success("✅ Transacción guardada")
-                        st.rerun()
-                    else:
-                        st.error(f"⚠️ No se pudo guardar. Respuesta: {res}")
+                    st.error(f"⚠️ No se pudo guardar. Respuesta: {res}")
+
 
 with col_right:
     st.header("➕ Nuevo crédito")
