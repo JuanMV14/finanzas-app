@@ -267,9 +267,9 @@ if transacciones:
             else:
                 st.success("Transacción eliminada")
                 st.rerun()
-    else:
-    st.info("No hay transacciones registradas.")
-    df = pd.DataFrame()  # ← Esto asegura que df siempre esté definido
+            else:
+                st.info("No hay transacciones registradas.")
+                df = pd.DataFrame()  # ← Esto asegura que df siempre esté definido
 
 # ==============================
 # DASHBOARD - MÉTRICAS Y GRÁFICAS (MonAi Style Dark Mode en Streamlit)
