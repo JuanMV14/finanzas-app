@@ -30,7 +30,7 @@ if st.session_state["user"] is None:
         except Exception as e:
             st.error(f"Error al iniciar sesión: {e}")
 else:
-    st.sidebar.success(f"Usuario: {st.session_state['user'].email}")
+    user_email = (     getattr(st.session_state["user"], "email", None)      or st.session_state["user"].user_metadata.get("email") ) st.sidebar.success(f"Usuario: {user_email}")
     if st.sidebar.button("Cerrar sesión"):
         st.session_state["user"] = None
         st.rerun()
