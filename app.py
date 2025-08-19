@@ -170,23 +170,22 @@ with col_left:
     with st.form("form_trans"):
         categoria_seleccionada = st.selectbox("Categoría", categorias)
 
-        # Mostrar cajita de texto si se selecciona "Otro"
-        if categoria_seleccionada == "Otro":
-            categoria_personalizada = st.text_input("📝 Escribe tu categoría personalizada")
-        else:
-            categoria_personalizada = ""
+        categoria_personalizada = ""
+        mostrar_input = False
 
-        # Usar la categoría personalizada si fue escrita
-        categoria_final = categoria_personalizada if categoria_personalizada else categoria_seleccionada
+        if categoria_seleccionada == "Otro":
+            mostrar_input = True
+            categoria_personalizada = st.text_input("📝 Escribe tu categoría personalizada")
 
         monto = st.number_input("Monto", min_value=0.01, step=0.01)
         fecha = st.date_input("Fecha", value=date.today())
         submitted = st.form_submit_button("Guardar transacción")
 
     if submitted:
-        if not categoria_final:
-            st.error("⚠️ Debes ingresar una categoría.")
+        if categoria_seleccionada == "Otro" and not categoria_personalizada.strip():
+            st.error("⚠️ Debes escribir una categoría personalizada si seleccionas 'Otro'.")
         else:
+            categoria_final = categoria_personalizada.strip() if categoria_seleccionada == "Otro" else categoria_seleccionada
             res = insertar_transaccion(user_id, tipo, categoria_final, monto, fecha)
             if isinstance(res, dict) and res.get("error"):
                 st.error(f"❌ Error al guardar: {res['error']}")
