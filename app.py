@@ -270,54 +270,63 @@ if transacciones:
 else:
     st.info("No hay transacciones registradas.")
 
-# -------------------
-# DASHBOARD - METRICAS Y GRAFICAS (DARK MODE)
-# -------------------
-st.markdown("---")
-st.header("📊 Resumen")
+# ==============================
+# DASHBOARD - MÉTRICAS Y GRÁFICAS (MonAi Style Dark Mode)
+# ==============================
+import dash
+from dash import dcc, html
+import plotly.graph_objs as go
 
-df_all = pd.DataFrame(transacciones) if transacciones else pd.DataFrame(columns=["tipo","monto","fecha","categoria"])
-if not df_all.empty:
-    # Aseguramos tipos
-    df_all["monto"] = pd.to_numeric(df_all["monto"], errors="coerce").fillna(0)
-    df_all["fecha"] = pd.to_datetime(df_all["fecha"], errors="coerce")
-    ingresos = df_all[df_all["tipo"] == "Ingreso"]["monto"].sum()
-    gastos = df_all[df_all["tipo"] == "Gasto"]["monto"].sum()
-    creditos_total = df_all[df_all["tipo"] == "Credito"]["monto"].sum()
-    balance = ingresos - gastos - creditos_total
+# Datos de ejemplo (reemplaza con los tuyos)
+categorias = ["Enero", "Febrero", "Marzo", "Abril", "Mayo"]
+valores = [120, 200, 150, 300, 250]
 
-    c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Ingresos", f"${ingresos:,.2f}")
-    c2.metric("Gastos", f"${gastos:,.2f}")
-    c3.metric("Créditos (deuda)", f"${creditos_total:,.2f}")
-    c4.metric("Balance", f"${balance:,.2f}")
+# Gráfico estilo MonAi - Dark Theme
+grafica_monai = dcc.Graph(
+    id="grafica-monai",
+    figure={
+        "data": [
+            go.Scatter(
+                x=categorias,
+                y=valores,
+                mode="lines+markers",
+                line=dict(color="#6C63FF", width=3),
+                marker=dict(size=10, color="#6C63FF", line=dict(width=2, color="#FFFFFF")),
+                name="Ventas",
+            )
+        ],
+        "layout": go.Layout(
+            template="plotly_dark",
+            paper_bgcolor="#1E1E2F",
+            plot_bgcolor="#1E1E2F",
+            font=dict(color="#E4E4E7", family="Arial"),
+            margin=dict(l=40, r=20, t=50, b=40),
+            title=dict(
+                text="📊 Rendimiento de Ventas",
+                font=dict(size=22, color="#FFFFFF"),
+                x=0.5,  # Centrado
+            ),
+            xaxis=dict(
+                showgrid=False,
+                zeroline=False,
+                linecolor="#444",
+            ),
+            yaxis=dict(
+                showgrid=True,
+                gridcolor="rgba(255,255,255,0.1)",
+                zeroline=False,
+                linecolor="#444",
+            ),
+        ),
+    },
+    style={"height": "400px"},
+)
 
-    # Tema oscuro Matplotlib
-    plt.style.use("dark_background")
-
-    # Gráfico 1: Gastos por categoría (barra)
-    gastos_por_cat = df_all[df_all["tipo"] == "Gasto"].groupby("categoria")["monto"].sum().sort_values(ascending=False)
-    if not gastos_por_cat.empty:
-        fig1, ax1 = plt.subplots()
-        gastos_por_cat.plot(kind="bar", ax=ax1, color="#ff6f61")
-        ax1.set_title("Gastos por categoría", color="white")
-        ax1.set_ylabel("Monto", color="white")
-        ax1.tick_params(colors="white")
-        st.pyplot(fig1)
-
-    # Gráfico 2: Evolución ingresos/gastos por fecha (líneas)
-    evo = df_all.groupby([pd.Grouper(key="fecha", freq="D"), "tipo"])["monto"].sum().unstack(fill_value=0)
-    if not evo.empty:
-        fig2, ax2 = plt.subplots()
-        if "Ingreso" in evo.columns:
-            evo["Ingreso"].cumsum().plot(ax=ax2, label="Ingresos acumulados", color="#4caf50")
-        if "Gasto" in evo.columns:
-            evo["Gasto"].cumsum().plot(ax=ax2, label="Gastos acumulados", color="#f44336")
-        if "Credito" in evo.columns:
-            evo["Credito"].cumsum().plot(ax=ax2, label="Créditos acumulados", color="#2196f3")
-        ax2.legend(facecolor="black", edgecolor="white", labelcolor="white")
-        ax2.set_title("Evolución acumulada", color="white")
-        ax2.tick_params(colors="white")
-        st.pyplot(fig2)
-else:
-    st.info("No hay datos suficientes para mostrar el resumen.")
+# Incrustar en layout
+app.layout = html.Div(
+    style={"backgroundColor": "#13131F", "padding": "30px", "minHeight": "100vh"},
+    children=[
+        html.H1("Dashboard estilo MonAi", style={"color": "white", "textAlign": "center"}),
+        grafica_monai,
+    ],
+)
