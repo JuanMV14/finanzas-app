@@ -88,7 +88,7 @@ if "user_id" not in st.session_state:
             usuario = supabase.auth.get_user().user
             st.session_state["user_id"] = usuario.id
             st.sidebar.success(f"Bienvenido {email}")
-            st.experimental_rerun()
+            st.rerun()
         except Exception as e:
             st.sidebar.error(f"Error al iniciar sesión: {e}")
 
@@ -108,7 +108,7 @@ else:
     st.sidebar.write("🧠 Tu user_id:", st.session_state["user_id"])
     if st.sidebar.button("Cerrar sesión"):
         del st.session_state["user_id"]
-        st.experimental_rerun()
+        st.rerun()
 
 # ----------------- APP PRINCIPAL -----------------
 if "user_id" in st.session_state:
