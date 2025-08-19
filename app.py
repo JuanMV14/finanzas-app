@@ -271,62 +271,53 @@ else:
     st.info("No hay transacciones registradas.")
 
 # ==============================
-# DASHBOARD - MÉTRICAS Y GRÁFICAS (MonAi Style Dark Mode)
+# DASHBOARD - MÉTRICAS Y GRÁFICAS (MonAi Style Dark Mode en Streamlit)
 # ==============================
-import dash
-from dash import dcc, html
 import plotly.graph_objs as go
+import streamlit as st
 
-# Datos de ejemplo (reemplaza con los tuyos)
+# Datos de ejemplo (reemplaza con tus consultas reales)
 categorias = ["Enero", "Febrero", "Marzo", "Abril", "Mayo"]
 valores = [120, 200, 150, 300, 250]
 
-# Gráfico estilo MonAi - Dark Theme
-grafica_monai = dcc.Graph(
-    id="grafica-monai",
-    figure={
-        "data": [
-            go.Scatter(
-                x=categorias,
-                y=valores,
-                mode="lines+markers",
-                line=dict(color="#6C63FF", width=3),
-                marker=dict(size=10, color="#6C63FF", line=dict(width=2, color="#FFFFFF")),
-                name="Ventas",
-            )
-        ],
-        "layout": go.Layout(
-            template="plotly_dark",
-            paper_bgcolor="#1E1E2F",
-            plot_bgcolor="#1E1E2F",
-            font=dict(color="#E4E4E7", family="Arial"),
-            margin=dict(l=40, r=20, t=50, b=40),
-            title=dict(
-                text="📊 Rendimiento de Ventas",
-                font=dict(size=22, color="#FFFFFF"),
-                x=0.5,  # Centrado
-            ),
-            xaxis=dict(
-                showgrid=False,
-                zeroline=False,
-                linecolor="#444",
-            ),
-            yaxis=dict(
-                showgrid=True,
-                gridcolor="rgba(255,255,255,0.1)",
-                zeroline=False,
-                linecolor="#444",
-            ),
-        ),
-    },
-    style={"height": "400px"},
+# Gráfico estilo MonAi
+fig = go.Figure()
+
+fig.add_trace(
+    go.Scatter(
+        x=categorias,
+        y=valores,
+        mode="lines+markers",
+        line=dict(color="#6C63FF", width=3),
+        marker=dict(size=10, color="#6C63FF", line=dict(width=2, color="#FFFFFF")),
+        name="Ventas",
+    )
 )
 
-# Incrustar en layout
-app.layout = html.Div(
-    style={"backgroundColor": "#13131F", "padding": "30px", "minHeight": "100vh"},
-    children=[
-        html.H1("Dashboard estilo MonAi", style={"color": "white", "textAlign": "center"}),
-        grafica_monai,
-    ],
+# Layout estilo oscuro MonAi
+fig.update_layout(
+    template="plotly_dark",
+    paper_bgcolor="#1E1E2F",
+    plot_bgcolor="#1E1E2F",
+    font=dict(color="#E4E4E7", family="Arial"),
+    margin=dict(l=40, r=20, t=50, b=40),
+    title=dict(
+        text="📊 Rendimiento de Ventas",
+        font=dict(size=22, color="#FFFFFF"),
+        x=0.5,  # Centrado
+    ),
+    xaxis=dict(
+        showgrid=False,
+        zeroline=False,
+        linecolor="#444",
+    ),
+    yaxis=dict(
+        showgrid=True,
+        gridcolor="rgba(255,255,255,0.1)",
+        zeroline=False,
+        linecolor="#444",
+    ),
 )
+
+# Mostrar en Streamlit
+st.plotly_chart(fig, use_container_width=True)
