@@ -274,52 +274,65 @@ else:
 # DASHBOARD - MÉTRICAS Y GRÁFICAS (MonAi Style Dark Mode en Streamlit)
 # ==============================
 import plotly.graph_objs as go
-import streamlit as st
 
-# Verificar que haya transacciones
-if not df_transacciones.empty:
+if not df.empty:
+    # Asegurar que "fecha" sea tipo datetime
+    df["fecha"] = pd.to_datetime(df["fecha"])
+
     # Crear columna "periodo" con formato Año-Mes
-    df_transacciones["periodo"] = (
-        df_transacciones["año"].astype(str)
-        + "-"
-        + df_transacciones["mes"].astype(str).str.zfill(2)
-    )
+    df["periodo"] = df["fecha"].dt.to_period("M").astype(str)
 
-    # Agrupar ingresos y egresos por periodo
+    # Agrupar ingresos y gastos por periodo
     resumen = (
-        df_transacciones.groupby(["periodo", "tipo"])["valor"]
+        df.groupby(["periodo", "tipo"])["monto"]
         .sum()
         .reset_index()
     )
 
-    # Gráfico MonAi Style
+    # Gráfico estilo MonAi
     fig = go.Figure()
 
     # Ingresos
     df_ingresos = resumen[resumen["tipo"] == "Ingreso"]
-    fig.add_trace(
-        go.Scatter(
-            x=df_ingresos["periodo"],
-            y=df_ingresos["valor"],
-            mode="lines+markers",
-            line=dict(color="#00CC96", width=3),
-            marker=dict(size=10, color="#00CC96", line=dict(width=2, color="#FFFFFF")),
-            name="Ingresos",
+    if not df_ingresos.empty:
+        fig.add_trace(
+            go.Scatter(
+                x=df_ingresos["periodo"],
+                y=df_ingresos["monto"],
+                mode="lines+markers",
+                line=dict(color="#00CC96", width=3),
+                marker=dict(size=10, color="#00CC96", line=dict(width=2, color="#FFFFFF")),
+                name="Ingresos",
+            )
         )
-    )
 
-    # Egresos
-    df_egresos = resumen[resumen["tipo"] == "Egreso"]
-    fig.add_trace(
-        go.Scatter(
-            x=df_egresos["periodo"],
-            y=df_egresos["valor"],
-            mode="lines+markers",
-            line=dict(color="#EF553B", width=3),
-            marker=dict(size=10, color="#EF553B", line=dict(width=2, color="#FFFFFF")),
-            name="Egresos",
+    # Gastos
+    df_gastos = resumen[resumen["tipo"] == "Gasto"]
+    if not df_gastos.empty:
+        fig.add_trace(
+            go.Scatter(
+                x=df_gastos["periodo"],
+                y=df_gastos["monto"],
+                mode="lines+markers",
+                line=dict(color="#EF553B", width=3),
+                marker=dict(size=10, color="#EF553B", line=dict(width=2, color="#FFFFFF")),
+                name="Gastos",
+            )
         )
-    )
+
+    # Créditos
+    df_creditos = resumen[resumen["tipo"] == "Credito"]
+    if not df_creditos.empty:
+        fig.add_trace(
+            go.Scatter(
+                x=df_creditos["periodo"],
+                y=df_creditos["monto"],
+                mode="lines+markers",
+                line=dict(color="#636EFA", width=3),
+                marker=dict(size=10, color="#636EFA", line=dict(width=2, color="#FFFFFF")),
+                name="Créditos",
+            )
+        )
 
     # Layout estilo oscuro MonAi
     fig.update_layout(
@@ -329,7 +342,7 @@ if not df_transacciones.empty:
         font=dict(color="#E4E4E7", family="Arial"),
         margin=dict(l=40, r=20, t=50, b=40),
         title=dict(
-            text="📊 Ingresos vs Egresos",
+            text="📊 Ingresos, Gastos y Créditos",
             font=dict(size=22, color="#FFFFFF"),
             x=0.5,  # Centrado
         ),
@@ -346,8 +359,18 @@ if not df_transacciones.empty:
         ),
     )
 
-    # Mostrar en Streamlit
+    # Mostrar gráfico
     st.plotly_chart(fig, use_container_width=True)
 
 else:
     st.info("No hay transacciones registradas aún para mostrar el dashboard.")
+
+# -------------------
+# FIRMA
+# -------------------
+st.markdown(
+    "<div style='text-align:center; color:gray; margin-top:30px;'>"
+    "BY <b>J-J Solutions</b> 🚀"
+    "</div>",
+    unsafe_allow_html=True,
+)
