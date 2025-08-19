@@ -25,16 +25,9 @@ def cargar_transacciones(user_id):
         return pd.DataFrame()
 
 def agregar_transaccion(fecha, tipo, categoria, monto, user_id):
-    user_data = supabase.auth.get_user()
-    if not user_data or not user_data.user:
-        st.error("⚠️ No hay sesión activa. No se puede guardar la transacción.")
-        return
-
-    uid_actual = user_data.user.id
-    if user_id != uid_actual:
-        st.error("⚠️ UID no coincide con el usuario autenticado. Transacción bloqueada.")
-        st.write("UID desde sesión:", user_id)
-        st.write("UID desde Supabase:", uid_actual)
+    # ✅ Ahora solo usamos lo que guardamos en la sesión de Streamlit
+    if "user_id" not in st.session_state:
+        st.error("⚠️ No hay sesión activa en Streamlit. No se puede guardar la transacción.")
         return
 
     payload = {
@@ -85,7 +78,7 @@ if "user_id" not in st.session_state:
     if st.sidebar.button("Login"):
         try:
             res = supabase.auth.sign_in_with_password({"email": email, "password": password})
-            usuario = supabase.auth.get_user().user
+            usuario = res.user
             st.session_state["user_id"] = usuario.id
             st.sidebar.success(f"Bienvenido {email}")
             st.rerun()
@@ -204,3 +197,5 @@ if "user_id" in st.session_state:
 
         c1, c2, c3 = st.columns(3)
         c1.metric("Cuota mensual", f"${cuota:,.2f}")
+        c2.metric("Total pagado", f"${total_pagado:,.2f}")
+        c3.metric("Intereses totales", f"${interes_total:,.2f}")
