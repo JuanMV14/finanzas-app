@@ -252,8 +252,23 @@ except Exception as e:
 st.header("📋 Mis transacciones")
 if transacciones:
     df = pd.DataFrame(transacciones)
-    # mostrar tabla
     st.dataframe(df[["id", "fecha", "tipo", "categoria", "monto"]].sort_values(by="fecha", ascending=False), use_container_width=True)
+
+    # Botones de eliminar por fila
+    for t in transacciones:
+        cols = st.columns([3, 2, 2, 1])
+        cols[0].write(f"{t.get('fecha')} — **{t.get('tipo')}** — {t.get('categoria')}")
+        cols[1].write(f"${float(t.get('monto')):,.2f}")
+        if cols[3].button("Eliminar", key=f"del_{t.get('id')}"):
+            r = borrar_transaccion(user_id, t.get("id"))
+            if isinstance(r, dict) and r.get("error"):
+                st.error(f"Error al eliminar: {r['error']}")
+            else:
+                st.success("Transacción eliminada")
+                st.rerun()
+else:
+    st.info("No hay transacciones registradas.")
+    df = pd.DataFrame()
 
     # Botones de eliminar por fila (iterando)
     for t in transacciones:
@@ -265,13 +280,14 @@ if transacciones:
             cols = st.columns([3, 2, 2, 1])
             cols[0].write(f"{t.get('fecha')} — **{t.get('tipo')}** — {t.get('categoria')}")
             cols[1].write(f"${float(t.get('monto')):,.2f}")
-            if cols[3].button("Eliminar", key=f"del_{t.get('id')}"):
-                r = borrar_transaccion(user_id, t.get("id"))
-                if isinstance(r, dict) and r.get("error"):
-                st.error(f"Error al eliminar: {r['error']}")
-                else:
-                st.success("Transacción eliminada")
-                st.rerun()
+    if cols[3].button("Eliminar", key=f"del_{t.get('id')}"):
+    r = borrar_transaccion(user_id, t.get("id"))
+    if isinstance(r, dict) and r.get("error"):
+        st.error(f"Error al eliminar: {r['error']}")
+    else:
+        st.success("Transacción eliminada")
+        st.rerun()
+
 else:
     st.info("No hay transacciones registradas.")
     df = pd.DataFrame()
