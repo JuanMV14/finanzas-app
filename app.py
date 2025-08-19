@@ -370,7 +370,7 @@ else:
 # -------------------
 st.markdown(
     "<div style='text-align:center; color:gray; margin-top:30px;'>"
-    "BY <b>J-J Solutions</b> 🚀"
+    "BY <b>J-J Solutions</b> "
     "</div>",
     unsafe_allow_html=True,
 )
