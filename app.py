@@ -262,7 +262,7 @@ if not df.empty:
     if not df_creditos.empty:
         fig.add_trace(go.Scatter(x=df_creditos["periodo"], y=df_creditos["monto"], mode="lines+markers", line=dict(color="#636EFA", width=3), marker=dict(size=10, color="#636EFA", line=dict(width=2, color="#FFFFFF")), name="Créditos"))
 
-    fig.update_layout(template="plotly_dark", paper_bgcolor="#1E1E2F", plot_bgcolor="#1E1E2F", font=dict(color="#E4E4E7", family="Arial"), margin=dict(l=40, r=20, t=50, b=40), title=dict(text="📊 Ingresos, Gastos y Créditos", font=dict(size=22, color="#FFFFFF"), x=0.5), xaxis=dict(showgrid=False, zeroline=False, linecolor="#444"), yaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.1)", zeroline=False, linecolor="#444"))
+    fig.update_layout(template="plotly_dark", paper_bgcolor="#1E1E2F", plot_bgcolor="#1E1E2F", font=dict(color="#E4E4E7", family="Arial"), margin=dict(l=40, r=20, t=50, b=40), title=dict(text="📊 Ingresos y Gastos", font=dict(size=22, color="#FFFFFF"), x=0.5), xaxis=dict(showgrid=False, zeroline=False, linecolor="#444"), yaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.1)", zeroline=False, linecolor="#444"))
 
     st.plotly_chart(fig, use_container_width=True)
 else:
