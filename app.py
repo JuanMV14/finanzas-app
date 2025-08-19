@@ -32,6 +32,7 @@ if not st.session_state["user"]:
                 "email": email,
                 "password": password
             })
+            # Guardamos el objeto user completo
             st.session_state["user"] = auth_response.user
             st.rerun()
         except Exception as e:
@@ -39,10 +40,15 @@ if not st.session_state["user"]:
 
 else:
     # Usuario autenticado
-    user_email = (
-        getattr(st.session_state["user"], "email", None) 
-        or st.session_state["user"].user_metadata.get("email")
-    )
+    user = st.session_state["user"]
+
+    if isinstance(user, dict):
+        user_email = user.get("email", "Usuario")
+        user_id = user.get("id")
+    else:
+        user_email = getattr(user, "email", "Usuario")
+        user_id = getattr(user, "id", None)
+
     st.sidebar.success(f"Usuario: {user_email}")
     if st.sidebar.button("Cerrar sesión"):
         st.session_state["user"] = None
@@ -54,27 +60,27 @@ else:
     st.subheader("Agregar nueva transacción")
 
     with st.form("nueva_transaccion"):
-        tipo = st.selectbox("Tipo", ["Ingreso", "Gasto"])
-        categoria = st.selectbox(
-            "Categoría", 
-            ["Comisión", "Salario", "Inversión", "Comida", "Transporte", "Otros"]
-        )
+        tipo = st.selectbox("Tipo", ["Ingreso", "Gasto", "Credito"])
+        if tipo == "Ingreso":
+            categoria = st.selectbox("Categoría", ["Salario", "Comisión", "Ventas", "Otro"])
+        elif tipo == "Gasto":
+            categoria = st.selectbox("Categoría", ["Comida", "Transporte", "Servicios", "Entretenimiento", "Otro"])
+        else:  # Crédito
+            categoria = st.selectbox("Categoría", ["Tarjeta de crédito", "Préstamo personal", "Hipoteca", "Otro"])
+
         monto = st.number_input("Monto", min_value=0.01, step=0.01)
         fecha = st.date_input("Fecha", value=date.today())
         submitted = st.form_submit_button("Guardar")
 
         if submitted:
-            if "user" in st.session_state and st.session_state["user"]:
-                user_id = st.session_state["user"].id  # UID del usuario autenticado
-
+            if user_id:
                 data = {
                     "tipo": tipo,
                     "categoria": categoria,
                     "monto": monto,
-                    "fecha": str(fecha),  # convertir date a string
+                    "fecha": str(fecha),
                     "user_id": user_id
                 }
-
                 try:
                     response = supabase.table("transacciones").insert(data).execute()
                     if response.data:
@@ -85,7 +91,7 @@ else:
                 except Exception as e:
                     st.error(f"❌ Error al guardar: {e}")
             else:
-                st.error("⚠️ Debes iniciar sesión para agregar transacciones")
+                st.error("⚠️ No se pudo determinar el usuario autenticado.")
 
     # -------------------
     # LISTAR TRANSACCIONES
@@ -93,7 +99,6 @@ else:
     st.subheader("📋 Mis transacciones")
 
     try:
-        user_id = st.session_state["user"].id
         transacciones = supabase.table("transacciones") \
             .select("*") \
             .eq("user_id", user_id) \
