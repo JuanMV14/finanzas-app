@@ -260,6 +260,11 @@ if transacciones:
         cols = st.columns([3, 2, 2, 1])
         cols[0].write(f"{t.get('fecha')} — **{t.get('tipo')}** — {t.get('categoria')}")
         cols[1].write(f"${float(t.get('monto')):,.2f}")
+        if transacciones:
+    for t in transacciones:
+        cols = st.columns([3, 2, 2, 1])
+        cols[0].write(f"{t.get('fecha')} — **{t.get('tipo')}** — {t.get('categoria')}")
+        cols[1].write(f"${float(t.get('monto')):,.2f}")
         if cols[3].button("Eliminar", key=f"del_{t.get('id')}"):
             r = borrar_transaccion(user_id, t.get("id"))
             if isinstance(r, dict) and r.get("error"):
@@ -267,9 +272,9 @@ if transacciones:
             else:
                 st.success("Transacción eliminada")
                 st.rerun()
-            else:
-                st.info("No hay transacciones registradas.")
-                df = pd.DataFrame()  # ← Esto asegura que df siempre esté definido
+else:
+    st.info("No hay transacciones registradas.")
+    df = pd.DataFrame()
 
 # ==============================
 # DASHBOARD - MÉTRICAS Y GRÁFICAS (MonAi Style Dark Mode en Streamlit)
