@@ -203,7 +203,7 @@ with col_left:
                 ok = getattr(res, "data", None) or (res.get("data") if isinstance(res, dict) else None)
                 if ok:
                     st.success("✅ Transacción guardada")
-                    st.experimental_rerun()
+                    st.rerun()
                 else:
                     st.error(f"⚠️ No se pudo guardar. Respuesta: {res}")
 
