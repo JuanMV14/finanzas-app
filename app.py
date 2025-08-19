@@ -153,22 +153,24 @@ col_left, col_right = st.columns([2, 1])
 
 with col_left:
     st.header("➕ Nueva transacción")
-    with st.form("form_trans"):
-        tipo = st.selectbox("Tipo", ["Ingreso", "Gasto", "Credito"])
 
-        if tipo == "Ingreso":
-            categoria = st.selectbox("Categoría", [
-                "Salario", "Comisión", "Venta", "Otro"
-            ])
-        elif tipo == "Gasto":
-            categoria = st.selectbox("Categoría", [
-                "Comida", "Transporte", "Servicios", "Entretenimiento", "Servicio públicos",
-                "Ocio", "Gasolina", "Reparación moto", "Moto", "Ropa", "Mom", "Dad", "Otro"
-            ])
-        else:  # Crédito
-            categoria = st.selectbox("Categoría", [
-                "Tarjeta de crédito", "Préstamo", "Tecnomecánica", "Otro"
-            ])
+    # Selección de tipo fuera del formulario para que se actualice dinámicamente
+    tipo = st.selectbox("Tipo", ["Ingreso", "Gasto", "Credito"])
+
+    # Diccionario de categorías por tipo
+    categorias_por_tipo = {
+        "Ingreso": ["Salario", "Comisión", "Venta", "Otro"],
+        "Gasto": [
+            "Comida", "Transporte", "Servicios", "Entretenimiento", "Servicio públicos",
+            "Ocio", "Gasolina", "Reparación moto", "Moto", "Ropa", "Mom", "Dad", "Otro"
+        ],
+        "Credito": ["Tarjeta de crédito", "Préstamo", "Tecnomecánica", "Otro"]
+    }
+
+    categorias = categorias_por_tipo.get(tipo, [])
+
+    with st.form("form_trans"):
+        categoria = st.selectbox("Categoría", categorias)
 
         if categoria == "Otro":
             categoria_personalizada = st.text_input("Especifica la categoría")
