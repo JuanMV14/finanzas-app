@@ -271,7 +271,7 @@ else:
     st.info("No hay transacciones registradas.")
 
 # -------------------
-# DASHBOARD - METRICAS Y GRAFICAS
+# DASHBOARD - METRICAS Y GRAFICAS (DARK MODE)
 # -------------------
 st.markdown("---")
 st.header("📊 Resumen")
@@ -292,13 +292,17 @@ if not df_all.empty:
     c3.metric("Créditos (deuda)", f"${creditos_total:,.2f}")
     c4.metric("Balance", f"${balance:,.2f}")
 
+    # Tema oscuro Matplotlib
+    plt.style.use("dark_background")
+
     # Gráfico 1: Gastos por categoría (barra)
     gastos_por_cat = df_all[df_all["tipo"] == "Gasto"].groupby("categoria")["monto"].sum().sort_values(ascending=False)
     if not gastos_por_cat.empty:
         fig1, ax1 = plt.subplots()
-        gastos_por_cat.plot(kind="bar", ax=ax1)
-        ax1.set_title("Gastos por categoría")
-        ax1.set_ylabel("Monto")
+        gastos_por_cat.plot(kind="bar", ax=ax1, color="#ff6f61")
+        ax1.set_title("Gastos por categoría", color="white")
+        ax1.set_ylabel("Monto", color="white")
+        ax1.tick_params(colors="white")
         st.pyplot(fig1)
 
     # Gráfico 2: Evolución ingresos/gastos por fecha (líneas)
@@ -306,13 +310,14 @@ if not df_all.empty:
     if not evo.empty:
         fig2, ax2 = plt.subplots()
         if "Ingreso" in evo.columns:
-            evo["Ingreso"].cumsum().plot(ax=ax2, label="Ingresos acumulados")
+            evo["Ingreso"].cumsum().plot(ax=ax2, label="Ingresos acumulados", color="#4caf50")
         if "Gasto" in evo.columns:
-            evo["Gasto"].cumsum().plot(ax=ax2, label="Gastos acumulados")
+            evo["Gasto"].cumsum().plot(ax=ax2, label="Gastos acumulados", color="#f44336")
         if "Credito" in evo.columns:
-            evo["Credito"].cumsum().plot(ax=ax2, label="Créditos acumulados")
-        ax2.legend()
-        ax2.set_title("Evolución acumulada")
+            evo["Credito"].cumsum().plot(ax=ax2, label="Créditos acumulados", color="#2196f3")
+        ax2.legend(facecolor="black", edgecolor="white", labelcolor="white")
+        ax2.set_title("Evolución acumulada", color="white")
+        ax2.tick_params(colors="white")
         st.pyplot(fig2)
 else:
     st.info("No hay datos suficientes para mostrar el resumen.")
