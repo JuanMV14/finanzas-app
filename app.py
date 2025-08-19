@@ -154,10 +154,8 @@ col_left, col_right = st.columns([2, 1])
 with col_left:
     st.header("➕ Nueva transacción")
 
-    # Selección de tipo fuera del formulario para que se actualice dinámicamente
     tipo = st.selectbox("Tipo", ["Ingreso", "Gasto", "Credito"])
 
-    # Diccionario de categorías por tipo
     categorias_por_tipo = {
         "Ingreso": ["Salario", "Comisión", "Venta", "Otro"],
         "Gasto": [
@@ -170,22 +168,23 @@ with col_left:
     categorias = categorias_por_tipo.get(tipo, [])
 
     with st.form("form_trans"):
-        categoria = st.selectbox("Categoría", categorias)
+        categoria_seleccionada = st.selectbox("Categoría", categorias)
 
-        if categoria == "Otro":
+        categoria_personalizada = ""
+        if categoria_seleccionada == "Otro":
             categoria_personalizada = st.text_input("Especifica la categoría")
-            if categoria_personalizada:
-                categoria = categoria_personalizada
+
+        categoria_final = categoria_personalizada if categoria_seleccionada == "Otro" and categoria_personalizada else categoria_seleccionada
 
         monto = st.number_input("Monto", min_value=0.01, step=0.01)
         fecha = st.date_input("Fecha", value=date.today())
         submitted = st.form_submit_button("Guardar transacción")
 
     if submitted:
-        if not categoria:
+        if not categoria_final:
             st.error("⚠️ Debes ingresar una categoría.")
         else:
-            res = insertar_transaccion(user_id, tipo, categoria, monto, fecha)
+            res = insertar_transaccion(user_id, tipo, categoria_final, monto, fecha)
             if isinstance(res, dict) and res.get("error"):
                 st.error(f"❌ Error al guardar: {res['error']}")
             else:
