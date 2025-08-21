@@ -220,7 +220,7 @@ if transacciones:
         yaxis_title="Monto"
     )
 
-    st.plotly
+    st.plotly_chart(fig, use_container_width=True)
 
 # -------------------
 # FIRMA
