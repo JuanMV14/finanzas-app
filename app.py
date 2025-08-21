@@ -219,18 +219,20 @@ if transacciones:
 st.header("💳 Mis créditos")
 if creditos:
     for c in creditos:
-        monto = c.get("monto", 0)
-        plazo = c.get("plazo_meses", 1)
-        cuotas_pagadas = c.get("cuotas_pagadas", 0)
-        cuota_mensual = c.get("cuota_mensual", monto / plazo if plazo > 0 else monto)
-        progreso = cuotas_pagadas / plazo if plazo > 0 else 0
+    monto = float(c.get("monto", 0) or 0)
+    plazo = int(c.get("plazo_meses", 0) or 0)
+    cuotas_pagadas = int(c.get("cuotas_pagadas", 0) or 0)
+    cuota_mensual = float(c.get("cuota_mensual", monto / plazo if plazo > 0 else monto) or 0)
 
-        st.subheader(c.get("nombre", "Crédito"))
-        st.write(f"Monto: ${monto:,.2f}")
-        st.write(f"Tasa interés: {c.get('tasa_interes', 0)}%")
-        st.write(f"Plazo: {plazo} meses")
-        st.write(f"Cuota mensual: ${cuota_mensual:,.2f}")
-        st.progress(progreso)
+    progreso = cuotas_pagadas / plazo if plazo > 0 else 0
+
+    st.subheader(c.get("nombre", "Crédito"))
+    st.write(f"Monto: ${monto:,.2f}")
+    st.write(f"Tasa interés: {c.get('tasa_interes', 0)}%")
+    st.write(f"Plazo: {plazo} meses")
+    st.write(f"Cuota mensual: ${cuota_mensual:,.2f}")
+    st.progress(progreso)
+
 else:
     st.info("No hay créditos registrados.")
 
