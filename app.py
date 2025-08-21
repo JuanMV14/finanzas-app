@@ -159,12 +159,23 @@ with col_right:
     st.header("➕ Nuevo crédito")
     with st.form("form_credito"):
         nombre = st.text_input("Nombre del crédito")
-        monto_c = st.number_input("Monto del crédito", min_value=0.01, step=0.01)
+        monto_c = st.number_input("Monto total del crédito", min_value=0.01, step=0.01)
         tasa = st.number_input("Tasa anual (%)", min_value=0.0, step=0.01)
-        plazo = st.number_input("Plazo (meses)", min_value=1, step=1)
-        cuotas_pagadas = st.number_input("Cuotas pagadas", min_value=0, step=1)
+        plazo = st.number_input("Plazo total (meses)", min_value=1, step=1)
+        cuota_mensual = st.number_input("Valor de la cuota mensual", min_value=0.01, step=0.01)
+        cuotas_pagadas = st.number_input("Meses pagados", min_value=0, max_value=plazo, step=1)
+
         if st.form_submit_button("Guardar crédito"):
-            insertar_credito(user_id, nombre, monto_c, tasa, plazo, cuotas_pagadas)
+            payload = {
+                "user_id": str(user_id),
+                "nombre": nombre,
+                "monto": float(monto_c),
+                "tasa_interes": float(tasa),
+                "plazo_meses": int(plazo),
+                "cuotas_pagadas": int(cuotas_pagadas),
+                "cuota_mensual": float(cuota_mensual)
+            }
+            supabase.table("credito").insert(payload).execute()
             st.success("✅ Crédito guardado")
             st.rerun()
 
