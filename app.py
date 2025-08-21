@@ -1,5 +1,4 @@
 import streamlit as st
-
 from supabase import create_client, Client
 import pandas as pd
 from datetime import date
@@ -9,7 +8,7 @@ import plotly.graph_objs as go
 # CONFIGURACIÓN SUPABASE
 # -------------------
 SUPABASE_URL = "https://ejsakzzbgwymptqjoigs.supabase.co"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVqc2FrenpiZ3d5bXB0cWpvaWdzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUzOTQwOTMsImV4cCI6MjA3MDk3MDA5M30.IwadYpEJyQAR0zT4Qm6Ae1Q4ac3gqRkGVz0xzhRe3m0"
+SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 st.set_page_config(page_title="💰 Finanzas Personales", layout="wide")
@@ -141,7 +140,12 @@ with col_left:
     }
     categoria = st.selectbox("Categoría", categorias_por_tipo[tipo])
     if categoria == "Otro":
-        categoria = st.text_input("Categoría personalizada")
+        categoria_personalizada = st.text_input("Categoría personalizada")
+        if categoria_personalizada:
+            categoria = categoria_personalizada
+        else:
+            st.warning("Por favor ingresa una categoría personalizada.")
+            st.stop()
 
     with st.form("form_trans"):
         monto = st.number_input("Monto", min_value=0.01, step=0.01)
@@ -198,56 +202,25 @@ if transacciones:
 
     resumen = df.groupby(["periodo", "tipo"])["monto"].sum().reset_index()
 
-   # 📊 Barras de ingresos/gastos
-fig = go.Figure()
-for tipo in ["Ingreso", "Gasto", "Credito"]:
-    subset = resumen[resumen["tipo"] == tipo]
-    if not subset.empty:
-        fig.add_trace(go.Bar(
-            x=subset["periodo"],
-            y=subset["monto"],
-            name=tipo
-        ))
+    # 📊 Barras de ingresos/gastos/créditos
+    fig = go.Figure()
+    for tipo in ["Ingreso", "Gasto", "Credito"]:
+        subset = resumen[resumen["tipo"] == tipo]
+        if not subset.empty:
+            fig.add_trace(go.Bar(
+                x=subset["periodo"],
+                y=subset["monto"],
+                name=tipo
+            ))
 
-fig.update_layout(
-    barmode="group",  # barras lado a lado
-    title="Ingresos vs Gastos vs Créditos por Mes",
-    xaxis_title="Periodo",
-    yaxis_title="Monto"
-)
+    fig.update_layout(
+        barmode="group",
+        title="Ingresos vs Gastos vs Créditos por Mes",
+        xaxis_title="Periodo",
+        yaxis_title="Monto"
+    )
 
-st.plotly_chart(fig, use_container_width=True)
-
-
-    # 📊 Gastos por categoría
-    df_gastos = df[df["tipo"] == "Gasto"].groupby("categoria")["monto"].sum().reset_index()
-    if not df_gastos.empty:
-        fig_cat = go.Figure([go.Bar(x=df_gastos["categoria"], y=df_gastos["monto"])])
-        fig_cat.update_layout(title="Distribución de gastos por categoría")
-        st.plotly_chart(fig_cat, use_container_width=True)
-
-# ==============================
-# CRÉDITOS
-# ==============================
-st.header("💳 Mis créditos")
-if creditos:
-    for c in creditos:
-        monto = float(c.get("monto", 0) or 0)
-        plazo = int(c.get("plazo_meses", 0) or 0)
-        cuotas_pagadas = int(c.get("cuotas_pagadas", 0) or 0)
-        cuota_mensual = float(c.get("cuota_mensual", monto / plazo if plazo > 0 else monto) or 0)
-
-    progreso = cuotas_pagadas / plazo if plazo > 0 else 0
-
-    st.subheader(c.get("nombre", "Crédito"))
-    st.write(f"Monto: ${monto:,.2f}")
-    st.write(f"Tasa interés: {c.get('tasa_interes', 0)}%")
-    st.write(f"Plazo: {plazo} meses")
-    st.write(f"Cuota mensual: ${cuota_mensual:,.2f}")
-    st.progress(progreso)
-
-else:
-    st.info("No hay créditos registrados.")
+    st.plotly
 
 # -------------------
 # FIRMA
