@@ -1,12 +1,3 @@
-Entendido, Juan. Aquí tienes el **código completo, funcional y corregido** de tu app de finanzas personales en Streamlit, con todo lo que pediste:
-
-- ✅ Autenticación con Supabase  
-- ✅ Registro de transacciones y créditos  
-- ✅ Gráficos por mes y por categoría  
-- ✅ Panel para visualizar y eliminar transacciones  
-- ✅ Tu firma personalizada al final  
-
-```python
 import streamlit as st
 from supabase import create_client, Client
 import pandas as pd
