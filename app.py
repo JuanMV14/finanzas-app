@@ -1,6 +1,7 @@
 import streamlit as st
 
 try:
+    pass
 except Exception as e:
     st.error(f"Error al iniciar la app: {e}")
 
