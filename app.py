@@ -32,29 +32,6 @@ def _extract_user_from_auth_response(auth_resp):
                 return {"id": str(uid), "email": email}
     except Exception:
         pass
-
-    try:
-        if isinstance(auth_resp, dict):
-            user_dict = auth_resp.get("user") or auth_resp.get("data") or auth_resp
-            if isinstance(user_dict, dict):
-                uid = user_dict.get("id") or user_dict.get("user", {}).get("id")
-                email = user_dict.get("email") or (user_dict.get("user") or {}).get("email")
-                if uid:
-                    return {"id": str(uid), "email": email}
-    except Exception:
-        pass
-
-    try:
-        gu = supabase.auth.get_user()
-        gu_user = getattr(gu, "user", None) or (gu.get("data", {}).get("user") if isinstance(gu, dict) else None)
-        if gu_user:
-            uid = getattr(gu_user, "id", None) or (gu_user.get("id") if isinstance(gu_user, dict) else None)
-            email = getattr(gu_user, "email", None) or (gu_user.get("email") if isinstance(gu_user, dict) else None)
-            if uid:
-                return {"id": str(uid), "email": email}
-    except Exception:
-        pass
-
     return None
 
 def login(email, password):
@@ -73,11 +50,7 @@ def login(email, password):
 def signup(email, password):
     try:
         resp = supabase.auth.sign_up({"email": email, "password": password})
-        user = _extract_user_from_auth_response(resp)
-        if user:
-            st.success("Cuenta creada. Revisa tu email para confirmar (si aplica).")
-        else:
-            st.success("Cuenta registrada. Inicia sesión.")
+        st.success("Cuenta creada. Revisa tu email para confirmar (si aplica).")
     except Exception as e:
         st.error(f"Error al registrar: {e}")
 
@@ -95,23 +68,23 @@ def logout():
 # -------------------
 def insertar_transaccion(user_id, tipo, categoria, monto, fecha):
     payload = {"user_id": str(user_id), "tipo": tipo, "categoria": categoria, "monto": float(monto), "fecha": str(fecha)}
-    try:
-        return supabase.table("transacciones").insert(payload).execute()
-    except Exception as e:
-        return {"error": str(e)}
+    return supabase.table("transacciones").insert(payload).execute()
 
-def insertar_credito(user_id, nombre, monto, tasa, plazo_meses):
-    payload = {"user_id": str(user_id), "nombre": nombre, "monto": float(monto), "tasa_interes": float(tasa), "plazo_meses": int(plazo_meses)}
-    try:
-        return supabase.table("credito").insert(payload).execute()
-    except Exception as e:
-        return {"error": str(e)}
+def insertar_credito(user_id, nombre, monto, tasa, plazo_meses, cuotas_pagadas):
+    cuota_mensual = monto / plazo_meses if plazo_meses > 0 else monto
+    payload = {
+        "user_id": str(user_id),
+        "nombre": nombre,
+        "monto": float(monto),
+        "tasa_interes": float(tasa),
+        "plazo_meses": int(plazo_meses),
+        "cuotas_pagadas": int(cuotas_pagadas),
+        "cuota_mensual": cuota_mensual
+    }
+    return supabase.table("credito").insert(payload).execute()
 
 def borrar_transaccion(user_id, trans_id):
-    try:
-        return supabase.table("transacciones").delete().eq("id", trans_id).eq("user_id", str(user_id)).execute()
-    except Exception as e:
-        return {"error": str(e)}
+    return supabase.table("transacciones").delete().eq("id", trans_id).eq("user_id", str(user_id)).execute()
 
 # -------------------
 # UI: LOGIN / SIGNUP
@@ -151,153 +124,105 @@ user_id = user.get("id")
 # --- Panel para agregar transacción y crédito ---
 col_left, col_right = st.columns([2, 1])
 
-col_left, col_right = st.columns([2, 1])
-
 with col_left:
     st.header("➕ Nueva transacción")
-
-    # Selección dinámica fuera del formulario
     tipo = st.selectbox("Tipo", ["Ingreso", "Gasto", "Credito"])
-
     categorias_por_tipo = {
         "Ingreso": ["Salario", "Comisión", "Venta", "Otro"],
-        "Gasto": [
-            "Comida", "Transporte", "Entretenimiento", "Servicio públicos",
-            "Ocio", "Gasolina", "Reparación moto", "Moto", "Ropa", "Mom", "Dad", "Otro"
-        ],
-        "Credito": ["Tarjeta de crédito", "Préstamo", "Tecnomecánica", "Otro"]
+        "Gasto": ["Comida", "Transporte", "Entretenimiento", "Servicios públicos", "Ocio", "Gasolina", "Ropa", "Otro"],
+        "Credito": ["Tarjeta de crédito", "Préstamo", "Otro"]
     }
-
-    categorias = categorias_por_tipo.get(tipo, [])
-    categoria_seleccionada = st.selectbox("Categoría", categorias)
-
-    # Mostrar cajita si se selecciona "Otro"
-    if categoria_seleccionada == "Otro":
-        categoria_personalizada = st.text_input("📝 Escribe tu categoría personalizada")
-    else:
-        categoria_personalizada = ""
-
-    categoria_final = categoria_personalizada.strip() if categoria_seleccionada == "Otro" else categoria_seleccionada
+    categoria = st.selectbox("Categoría", categorias_por_tipo[tipo])
+    if categoria == "Otro":
+        categoria = st.text_input("Categoría personalizada")
 
     with st.form("form_trans"):
         monto = st.number_input("Monto", min_value=0.01, step=0.01)
         fecha = st.date_input("Fecha", value=date.today())
-        submitted = st.form_submit_button("Guardar transacción")
-
-    if submitted:
-        if categoria_seleccionada == "Otro" and not categoria_personalizada.strip():
-            st.error("⚠️ Debes escribir una categoría personalizada si seleccionas 'Otro'.")
-        else:
-            res = insertar_transaccion(user_id, tipo, categoria_final, monto, fecha)
-            if isinstance(res, dict) and res.get("error"):
-                st.error(f"❌ Error al guardar: {res['error']}")
-            else:
-                ok = getattr(res, "data", None) or (res.get("data") if isinstance(res, dict) else None)
-                if ok:
-                    st.success("✅ Transacción guardada")
-                    st.rerun()
-                else:
-                    st.error(f"⚠️ No se pudo guardar. Respuesta: {res}")
+        if st.form_submit_button("Guardar transacción"):
+            insertar_transaccion(user_id, tipo, categoria, monto, fecha)
+            st.success("✅ Transacción guardada")
+            st.rerun()
 
 with col_right:
     st.header("➕ Nuevo crédito")
     with st.form("form_credito"):
         nombre = st.text_input("Nombre del crédito")
-        monto_c = st.number_input("Monto del crédito", min_value=0.01, step=0.01, key="monto_credito")
-        tasa = st.number_input("Tasa anual (%)", min_value=0.0, step=0.01, key="tasa_credito")
-        plazo = st.number_input("Plazo (meses)", min_value=1, step=1, key="plazo_credito")
-        subc = st.form_submit_button("Guardar crédito")
-        if subc:
-            r = insertar_credito(user_id, nombre, monto_c, tasa, plazo)
-            if isinstance(r, dict) and r.get("error"):
-                st.error(f"❌ Error al guardar crédito: {r['error']}")
-            else:
-                ok = getattr(r, "data", None) or (r.get("data") if isinstance(r, dict) else None)
-                if ok:
-                    st.success("✅ Crédito guardado")
-                    st.rerun()
-                else:
-                    st.error(f"⚠️ No se pudo guardar el crédito. Respuesta: {r}")
-
-st.markdown("---")
+        monto_c = st.number_input("Monto del crédito", min_value=0.01, step=0.01)
+        tasa = st.number_input("Tasa anual (%)", min_value=0.0, step=0.01)
+        plazo = st.number_input("Plazo (meses)", min_value=1, step=1)
+        cuotas_pagadas = st.number_input("Cuotas pagadas", min_value=0, step=1)
+        if st.form_submit_button("Guardar crédito"):
+            insertar_credito(user_id, nombre, monto_c, tasa, plazo, cuotas_pagadas)
+            st.success("✅ Crédito guardado")
+            st.rerun()
 
 # -------------------
-# CARGAR TRANSACCIONES Y CREDITOS
+# CARGAR DATOS
 # -------------------
-try:
-    trs_resp = supabase.table("transacciones").select("*").eq("user_id", str(user_id)).order("fecha", desc=True).execute()
-    transacciones = getattr(trs_resp, "data", None) or (trs_resp.get("data") if isinstance(trs_resp, dict) else None) or []
-except Exception as e:
-    st.error(f"Error al cargar transacciones: {e}")
-    transacciones = []
+transacciones = supabase.table("transacciones").select("*").eq("user_id", str(user_id)).order("fecha", desc=True).execute().data
+creditos = supabase.table("credito").select("*").eq("user_id", str(user_id)).execute().data
 
-try:
-    cred_resp = supabase.table("credito").select("*").eq("user_id", str(user_id)).execute()
-    creditos = getattr(cred_resp, "data", None) or (cred_resp.get("data") if isinstance(cred_resp, dict) else None) or []
-except Exception as e:
-    st.error(f"Error al cargar créditos: {e}")
-    creditos = []
-
-# -------------------
-# TABLA Y DELETE
-# -------------------
-st.header("📋 Mis transacciones")
+# ==============================
+# RESUMEN RÁPIDO
+# ==============================
+st.subheader("📊 Resumen financiero")
 if transacciones:
     df = pd.DataFrame(transacciones)
-    st.dataframe(df[["id", "fecha", "tipo", "categoria", "monto"]].sort_values(by="fecha", ascending=False), use_container_width=True)
+    total_ingresos = df[df["tipo"] == "Ingreso"]["monto"].sum()
+    total_gastos = df[df["tipo"] == "Gasto"]["monto"].sum()
+    balance = total_ingresos - total_gastos
+    total_creditos = sum([c["monto"] for c in creditos]) if creditos else 0
 
-    for t in transacciones:
-        cols = st.columns([3, 2, 2, 1])
-        cols[0].write(f"{t.get('fecha')} — **{t.get('tipo')}** — {t.get('categoria')}")
-        cols[1].write(f"${float(t.get('monto')):,.2f}")
-        if cols[3].button("Eliminar", key=f"del_{t.get('id')}"):
-            r = borrar_transaccion(user_id, t.get("id"))
-            if isinstance(r, dict) and r.get("error"):
-                st.error(f"Error al eliminar: {r['error']}")
-            else:
-                st.success("Transacción eliminada")
-                st.rerun()
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("Ingresos", f"${total_ingresos:,.2f}")
+    col2.metric("Gastos", f"${total_gastos:,.2f}")
+    col3.metric("Balance", f"${balance:,.2f}")
+    col4.metric("Créditos", f"${total_creditos:,.2f}")
 else:
-    st.info("No hay transacciones registradas.")
-    df = pd.DataFrame()
+    st.info("No hay transacciones registradas aún.")
 
 # ==============================
-# DASHBOARD
+# GRAFICOS
 # ==============================
-if not df.empty:
+if transacciones:
     df["fecha"] = pd.to_datetime(df["fecha"])
     df["periodo"] = df["fecha"].dt.to_period("M").astype(str)
+
     resumen = df.groupby(["periodo", "tipo"])["monto"].sum().reset_index()
 
+    # 📈 Línea de ingresos/gastos
     fig = go.Figure()
-
-    df_ingresos = resumen[resumen["tipo"] == "Ingreso"]
-    if not df_ingresos.empty:
-        fig.add_trace(go.Scatter(x=df_ingresos["periodo"], y=df_ingresos["monto"], mode="lines+markers", line=dict(color="#00CC96", width=3), marker=dict(size=10, color="#00CC96", line=dict(width=2, color="#FFFFFF")), name="Ingresos"))
-
-    df_gastos = resumen[resumen["tipo"] == "Gasto"]
-    if not df_gastos.empty:
-        fig.add_trace(go.Scatter(x=df_gastos["periodo"], y=df_gastos["monto"], mode="lines+markers", line=dict(color="#EF553B", width=3), marker=dict(size=10, color="#EF553B", line=dict(width=2, color="#FFFFFF")), name="Gastos"))
-
-    df_creditos = resumen[resumen["tipo"] == "Credito"]
-    if not df_creditos.empty:
-        fig.add_trace(go.Scatter(x=df_creditos["periodo"], y=df_creditos["monto"], mode="lines+markers", line=dict(color="#636EFA", width=3), marker=dict(size=10, color="#636EFA", line=dict(width=2, color="#FFFFFF")), name="Créditos"))
-
-    fig.update_layout(template="plotly_dark", paper_bgcolor="#1E1E2F", plot_bgcolor="#1E1E2F", font=dict(color="#E4E4E7", family="Arial"), margin=dict(l=40, r=20, t=50, b=40), title=dict(text="📊 Ingresos, Gastos y Créditos", font=dict(size=22, color="#FFFFFF"), x=0.5), xaxis=dict(showgrid=False, zeroline=False, linecolor="#444"), yaxis=dict(showgrid=True, gridcolor="rgba(255,255,255,0.1)", zeroline=False, linecolor="#444"))
-
+    for tipo in ["Ingreso", "Gasto", "Credito"]:
+        subset = resumen[resumen["tipo"] == tipo]
+        if not subset.empty:
+            fig.add_trace(go.Scatter(x=subset["periodo"], y=subset["monto"], mode="lines+markers", name=tipo))
     st.plotly_chart(fig, use_container_width=True)
-else:
-    st.info("No hay transacciones registradas aún para mostrar el dashboard.")
+
+    # 📊 Gastos por categoría
+    df_gastos = df[df["tipo"] == "Gasto"].groupby("categoria")["monto"].sum().reset_index()
+    if not df_gastos.empty:
+        fig_cat = go.Figure([go.Bar(x=df_gastos["categoria"], y=df_gastos["monto"])])
+        fig_cat.update_layout(title="Distribución de gastos por categoría")
+        st.plotly_chart(fig_cat, use_container_width=True)
 
 # ==============================
-# TABLA DE CRÉDITOS
+# CRÉDITOS
 # ==============================
 st.header("💳 Mis créditos")
 if creditos:
-    dfc = pd.DataFrame(creditos)
-    st.dataframe(dfc[["id", "nombre", "monto", "tasa_interes", "plazo_meses"]], use_container_width=True)
-    total_creditos = dfc["monto"].sum()
-    st.success(f"Total créditos: ${total_creditos:,.2f}")
+    for c in creditos:
+        cuota_mensual = c["cuota_mensual"]
+        cuotas_pagadas = c["cuotas_pagadas"]
+        plazo = c["plazo_meses"]
+        progreso = cuotas_pagadas / plazo if plazo > 0 else 0
+
+        st.subheader(c["nombre"])
+        st.write(f"Monto: ${c['monto']:,.2f}")
+        st.write(f"Tasa interés: {c['tasa_interes']}%")
+        st.write(f"Plazo: {plazo} meses")
+        st.write(f"Cuota mensual: ${cuota_mensual:,.2f}")
+        st.progress(progreso)
 else:
     st.info("No hay créditos registrados.")
 
