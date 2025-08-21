@@ -279,8 +279,10 @@ if creditos:
         monto = float(c.get("monto", 0) or 0)
         tasa = float(c.get("tasa_interes", 0) or 0)
         plazo = int(c.get("plazo_meses", 0) or 0)
-        cuota_mensual = float(c.get("cuota_mensual", 0) or 0)
-        cuotas_pagadas = int(c.get("cuotas_pagadas", 0) or 0)
+
+        # Validar cuota y meses pagados para evitar errores
+        cuota_mensual = max(float(c.get("cuota_mensual", 0) or 0), 0.01)
+        cuotas_pagadas = min(int(c.get("cuotas_pagadas", 0) or 0), plazo)
         progreso = cuotas_pagadas / plazo if plazo > 0 else 0
 
         st.write(f"Monto: ${monto:,.2f}")
@@ -302,7 +304,6 @@ if creditos:
         st.progress(progreso)
 else:
     st.info("No hay créditos registrados.")
-
 
 # -------------------
 # FIRMA
