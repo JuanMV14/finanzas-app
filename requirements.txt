@@ -2,5 +2,5 @@ streamlit
 pandas
 matplotlib
 numpy
-supabase
+supabase-py
 plotly
