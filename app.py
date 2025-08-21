@@ -1,8 +1,6 @@
 import streamlit as st
 
 try:
-    # importa tu código normal aquí
-    import main  # si tienes la lógica en otro archivo
 except Exception as e:
     st.error(f"Error al iniciar la app: {e}")
 
