@@ -269,26 +269,40 @@ else:
     st.info("No hay transacciones registradas.")
 
 # ==============================
-# PANEL DE CRÉDITOS
+# PANEL DE CRÉDITOS EDITABLE
 # ==============================
 st.header("💳 Mis créditos")
 if creditos:
     for c in creditos:
-        monto = float(c.get("monto", 0) or 0)
-        plazo = int(c.get("plazo_meses", 0) or 0)
-        cuotas_pagadas = int(c.get("cuotas_pagadas", 0) or 0)
-        cuota_mensual = float(c.get("cuota_mensual", monto / plazo if plazo > 0 else monto) or 0)
+        st.subheader(c.get("nombre", "Crédito"))
 
+        monto = float(c.get("monto", 0) or 0)
+        tasa = float(c.get("tasa_interes", 0) or 0)
+        plazo = int(c.get("plazo_meses", 0) or 0)
+        cuota_mensual = float(c.get("cuota_mensual", 0) or 0)
+        cuotas_pagadas = int(c.get("cuotas_pagadas", 0) or 0)
         progreso = cuotas_pagadas / plazo if plazo > 0 else 0
 
-        st.subheader(c.get("nombre", "Crédito"))
         st.write(f"Monto: ${monto:,.2f}")
-        st.write(f"Tasa interés: {c.get('tasa_interes', 0)}%")
+        st.write(f"Tasa interés: {tasa}%")
         st.write(f"Plazo: {plazo} meses")
+
+        with st.form(f"editar_credito_{c['id']}"):
+            nueva_cuota = st.number_input("Editar cuota mensual", value=cuota_mensual, min_value=0.01, step=0.01)
+            nuevos_pagados = st.number_input("Editar meses pagados", value=cuotas_pagadas, min_value=0, max_value=plazo, step=1)
+            if st.form_submit_button("Actualizar"):
+                supabase.table("credito").update({
+                    "cuota_mensual": nueva_cuota,
+                    "cuotas_pagadas": nuevos_pagados
+                }).eq("id", c["id"]).eq("user_id", str(user_id)).execute()
+                st.success("✅ Crédito actualizado")
+                st.rerun()
+
         st.write(f"Cuota mensual: ${cuota_mensual:,.2f}")
         st.progress(progreso)
 else:
     st.info("No hay créditos registrados.")
+
 
 # -------------------
 # FIRMA
