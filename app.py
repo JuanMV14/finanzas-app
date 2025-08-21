@@ -1,6 +1,11 @@
 import streamlit as st
 
+# ==============================
+# MANEJO DE ERRORES AL INICIO
+# ==============================
 try:
+    # si en algún momento decides tener main.py lo importas aquí
+    # import main
     pass
 except Exception as e:
     st.error(f"Error al iniciar la app: {e}")
@@ -55,7 +60,7 @@ def login(email, password):
 
 def signup(email, password):
     try:
-        resp = supabase.auth.sign_up({"email": email, "password": password})
+        supabase.auth.sign_up({"email": email, "password": password})
         st.success("Cuenta creada. Revisa tu email para confirmar (si aplica).")
     except Exception as e:
         st.error(f"Error al registrar: {e}")
@@ -73,7 +78,13 @@ def logout():
 # FUNCIONES DE DB
 # -------------------
 def insertar_transaccion(user_id, tipo, categoria, monto, fecha):
-    payload = {"user_id": str(user_id), "tipo": tipo, "categoria": categoria, "monto": float(monto), "fecha": str(fecha)}
+    payload = {
+        "user_id": str(user_id),
+        "tipo": tipo,
+        "categoria": categoria,
+        "monto": float(monto),
+        "fecha": str(fecha)
+    }
     return supabase.table("transacciones").insert(payload).execute()
 
 def insertar_credito(user_id, nombre, monto, tasa, plazo_meses, cuotas_pagadas):
@@ -235,4 +246,7 @@ else:
 # -------------------
 # FIRMA
 # -------------------
-st.markdown("<div style='text-align:center; color:gray; margin-top:30px;'>BY <b>J-J Solutions</b></div>", unsafe_allow_html=True)
+st.markdown(
+    "<div style='text-align:center; color:gray; margin-top:30px;'>BY <b>J-J Solutions</b></div>",
+    unsafe_allow_html=True
+)
