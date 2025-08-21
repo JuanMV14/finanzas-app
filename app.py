@@ -219,10 +219,10 @@ if transacciones:
 st.header("💳 Mis créditos")
 if creditos:
     for c in creditos:
-    monto = float(c.get("monto", 0) or 0)
-    plazo = int(c.get("plazo_meses", 0) or 0)
-    cuotas_pagadas = int(c.get("cuotas_pagadas", 0) or 0)
-    cuota_mensual = float(c.get("cuota_mensual", monto / plazo if plazo > 0 else monto) or 0)
+        monto = float(c.get("monto", 0) or 0)
+        plazo = int(c.get("plazo_meses", 0) or 0)
+        cuotas_pagadas = int(c.get("cuotas_pagadas", 0) or 0)
+        cuota_mensual = float(c.get("cuota_mensual", monto / plazo if plazo > 0 else monto) or 0)
 
     progreso = cuotas_pagadas / plazo if plazo > 0 else 0
 
