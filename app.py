@@ -198,13 +198,26 @@ if transacciones:
 
     resumen = df.groupby(["periodo", "tipo"])["monto"].sum().reset_index()
 
-    # 📈 Línea de ingresos/gastos
-    fig = go.Figure()
-    for tipo in ["Ingreso", "Gasto", "Credito"]:
-        subset = resumen[resumen["tipo"] == tipo]
-        if not subset.empty:
-            fig.add_trace(go.Scatter(x=subset["periodo"], y=subset["monto"], mode="lines+markers", name=tipo))
-    st.plotly_chart(fig, use_container_width=True)
+   # 📊 Barras de ingresos/gastos
+fig = go.Figure()
+for tipo in ["Ingreso", "Gasto", "Credito"]:
+    subset = resumen[resumen["tipo"] == tipo]
+    if not subset.empty:
+        fig.add_trace(go.Bar(
+            x=subset["periodo"],
+            y=subset["monto"],
+            name=tipo
+        ))
+
+fig.update_layout(
+    barmode="group",  # barras lado a lado
+    title="Ingresos vs Gastos vs Créditos por Mes",
+    xaxis_title="Periodo",
+    yaxis_title="Monto"
+)
+
+st.plotly_chart(fig, use_container_width=True)
+
 
     # 📊 Gastos por categoría
     df_gastos = df[df["tipo"] == "Gasto"].groupby("categoria")["monto"].sum().reset_index()
