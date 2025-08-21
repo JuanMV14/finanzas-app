@@ -211,8 +211,7 @@ if transacciones:
     fig.update_layout(
         barmode="group",
         title="Ingresos vs Gastos vs Créditos por Mes",
-        xaxis
-            xaxis_title="Periodo",
+        xaxis_title="Periodo",
         yaxis_title="Monto"
     )
 
