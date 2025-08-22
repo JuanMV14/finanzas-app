@@ -84,38 +84,25 @@ def actualizar_credito(id, cuota, pagados):
     st.session_state["actualizar_resumen"] = True
 
 def eliminar_creditos_saldados(user_id):
-    creditos = supabase.table("credito").select("*").eq("user_id", user_id).execute().data
+    creditos = supabase.table("Credito").select("*").eq("user_id", user_id).execute().data
     for c in creditos:
-        id_credito = c.get("id", "desconocido")
-        nombre_credito = c.get("nombre_credito", "Sin nombre")
-        try:
-            meses_pagados = c["meses_pagados"]
+        id_credito = c.get("identificacion", "desconocido")
+        nombre_credito = c.get("Nombre", "Sin nombre")
+
+        # Validar que ambos campos existen
+        if "cuotas_pagadas" in c and "plazo_meses" in c:
+            cuotas_pagadas = c["cuotas_pagadas"]
             plazo_meses = c["plazo_meses"]
-            if meses_pagados >= plazo_meses:
+            if cuotas_pagadas >= plazo_meses:
                 eliminar_credito(id_credito)
                 st.info(f"✅ Crédito '{nombre_credito}' eliminado automáticamente (saldado).")
-        except KeyError as e:
-            campo_faltante = str(e).strip("'")
-            st.warning(f"⚠️ Crédito con ID {id_credito} tiene campos faltantes: '{campo_faltante}'")
-
-            # Validación de campos requeridos
-            if "meses_pagados" not in c or "plazo_meses" not in c:
-                campos_faltantes = []
-                if "meses_pagados" not in c:
-                    campos_faltantes.append("meses_pagados")
-                if "plazo_meses" not in c:
-                    campos_faltantes.append("plazo_meses")
-                st.warning(f"⚠️ Crédito con ID {id_credito} tiene campos faltantes: {', '.join(campos_faltantes)}.")
-                continue
-
-            # Eliminación si está saldado
-            if c["meses_pagados"] >= c["plazo_meses"]:
-                eliminar_credito(id_credito)
-                st.info(f"✅ Crédito '{nombre}' eliminado automáticamente (saldado).")
-
-        except Exception as e:
-            st.error("❌ Error al procesar créditos saldados.")
-            st.write("Detalles del error:", e)
+        else:
+            campos_faltantes = []
+            if "cuotas_pagadas" not in c:
+                campos_faltantes.append("cuotas_pagadas")
+            if "plazo_meses" not in c:
+                campos_faltantes.append("plazo_meses")
+            st.warning(f"⚠️ Crédito con ID {id_credito} tiene campos faltantes: {', '.join(campos_faltantes)}")
 
     for c in creditos:
         if c["meses_pagados"] >= c["plazo_meses"]:
