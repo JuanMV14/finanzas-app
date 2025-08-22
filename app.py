@@ -84,7 +84,7 @@ def actualizar_credito(id, cuota, pagados):
     st.session_state["actualizar_resumen"] = True
 
 def eliminar_creditos_saldados(user_id):
-    creditos = supabase.table("credito").select("*").eq("user_id", user_id).execute().data
+    creditos = supabase.table("creditos").select("*").eq("user_id", user_id).execute().data
     for c in creditos:
         id_credito = c.get("id", "desconocido")
         nombre_credito = c.get("nombre_credito", "Sin nombre")
