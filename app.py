@@ -5,8 +5,8 @@ import pandas as pd
 import plotly.express as px
 
 # 🔐 Conexión a Supabase
-url = "https://ejsakzzbgwymptqjoigs.supabase.co"
-key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVqc2FrenpiZ3d5bXB0cWpvaWdzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUzOTQwOTMsImV4cCI6MjA3MDk3MDA5M30.IwadYpEJyQAR0zT4Qm6Ae1Q4ac3gqRkGVz0xzhRe3m0"
+url = "https://TU_PROYECTO.supabase.co"
+key = "TU_API_KEY"
 supabase = create_client(url, key)
 
 # 🔐 Inicio de sesión
@@ -29,9 +29,6 @@ def get_user_id():
     return session.user.id if session else None
 
 def insertar_transaccion(user_id, tipo, categoria, monto, fecha):
-    if not all([tipo, categoria, monto, fecha]):
-        st.error("Todos los campos son obligatorios.")
-        return
     data = {
         "user_id": user_id,
         "tipo": tipo,
@@ -39,15 +36,11 @@ def insertar_transaccion(user_id, tipo, categoria, monto, fecha):
         "monto": monto,
         "fecha": str(fecha)
     }
-    res = supabase.table("transacciones").insert(data).execute()
-    if res.status_code == 201:
-        st.success("✅ Transacción guardada.")
-        st.session_state["actualizar_resumen"] = True
+    supabase.table("transacciones").insert(data).execute()
+    st.success("✅ Transacción guardada.")
+    st.session_state["actualizar_resumen"] = True
 
 def insertar_credito(user_id, nombre, monto, tasa, plazo, cuota, pagados):
-    if not all([nombre, monto, plazo, cuota]) or plazo < 1:
-        st.error("Todos los campos son obligatorios y el plazo debe ser mayor a 0.")
-        return
     data = {
         "user_id": user_id,
         "nombre_credito": nombre,
@@ -57,10 +50,9 @@ def insertar_credito(user_id, nombre, monto, tasa, plazo, cuota, pagados):
         "cuota_mensual": cuota,
         "meses_pagados": pagados
     }
-    res = supabase.table("creditos").insert(data).execute()
-    if res.status_code == 201:
-        st.success("✅ Crédito guardado.")
-        st.session_state["actualizar_resumen"] = True
+    supabase.table("creditos").insert(data).execute()
+    st.success("✅ Crédito guardado.")
+    st.session_state["actualizar_resumen"] = True
 
 def obtener_resumen_financiero(user_id):
     ingresos = gastos = balance = creditos = 0.0
@@ -170,23 +162,60 @@ with st.container():
     if st.button("Guardar crédito"):
         insertar_credito(user_id, nombre_credito, monto_credito, tasa_anual, plazo_meses, cuota_mensual, meses_pagados)
 
+# 🧾 Panel de gestión: Transacciones
+with st.container():
+    st.markdown("### 🧾 Tus transacciones")
+    transacciones = supabase.table("transacciones").select("*").eq("user_id", user_id).order("fecha", desc=True).execute().data
+    mostrar_grafico_transacciones(transacciones)
+    exportar_csv("transacciones", transacciones)
+    for t in transacciones:
+        with st.expander(f"{t['tipo']} - {t['categoria']} - ${t['monto']:,.2f} ({t['fecha']})"):
+            if st.button(f"🗑️ Eliminar transacción {t['id']}", key=f"del_tx_{t['id']}"):
+                eliminar_transaccion(t["id"])
+                st.success("Transacción eliminada.")
+
 # 💼 Panel de gestión: Créditos
 with st.container():
     st.markdown("### 💼 Tus créditos")
+
+    # Obtener créditos del usuario
     creditos_data = supabase.table("creditos").select("*").eq("user_id", user_id).order("nombre_credito").execute().data
+
+    # Mostrar notificaciones de créditos por vencer
     mostrar_notificaciones(creditos_data)
+
+    # Exportar créditos a CSV
     exportar_csv("creditos", creditos_data)
 
+    # Mostrar cada crédito en un expander
     for c in creditos_data:
         with st.expander(f"{c['nombre_credito']} - ${c['monto_total']:,.2f}"):
-            st.write(f"Plazo: {c['plazo_meses']} meses | Pagados: {c['meses_pagados']} | Cuota: ${c['cuota_mensual']:,.2f}")
-            
-            nueva_cuota = st.number_input("Editar cuota mensual", value=c["cuota_mensual"], key=f"cuota_{c['id']}")
-            nuevos_pagados = st.number_input("Editar meses pagados", value=c["meses_pagados"], key=f"pagados_{c['id']}")
-            
+            st.write(f"Plazo: {c['plazo_meses']} meses")
+            st.write(f"Meses pagados: {c['meses_pagados']}")
+            st.write(f"Cuota mensual: ${c['cuota_mensual']:,.2f}")
+            st.write(f"Tasa anual: {c['tasa_anual']}%")
+
+            # Inputs para editar
+            nueva_cuota = st.number_input(
+                "Editar cuota mensual",
+                value=c["cuota_mensual"],
+                min_value=0.01,
+                format="%.2f",
+                key=f"cuota_{c['id']}"
+            )
+            nuevos_pagados = st.number_input(
+                "Editar meses pagados",
+                value=c["meses_pagados"],
+                min_value=0,
+                max_value=c["plazo_meses"],
+                key=f"pagados_{c['id']}"
+            )
+
+            # Botón para actualizar
             if st.button(f"✏️ Actualizar crédito {c['id']}", key=f"edit_cr_{c['id']}"):
                 actualizar_credito(c["id"], nueva_cuota, nuevos_pagados)
-            
+
+            # Botón para eliminar
             if st.button(f"🗑️ Eliminar crédito {c['id']}", key=f"del_cr_{c['id']}"):
                 eliminar_credito(c["id"])
                 st.success("Crédito eliminado.")
