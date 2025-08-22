@@ -91,7 +91,8 @@ def eliminar_creditos_saldados(user_id):
                 eliminar_credito(c["id"])
                 st.info(f"✅ Crédito '{c.get('nombre_credito', 'Sin nombre')}' eliminado automáticamente (saldado).")
         except KeyError as e:
-            st.warning(f"⚠️ Crédito con ID {c.get('id', 'desconocido')} tiene campos faltantes: {e}")
+            campo_faltante = str(e).strip("'")  # Extrae el nombre del campo faltante
+            st.warning(f"⚠️ Crédito con ID {c.get('id', 'desconocido')} tiene campos faltantes: '{campo_faltante}'")
 
             # Validación de campos requeridos
             if "meses_pagados" not in c or "plazo_meses" not in c:
