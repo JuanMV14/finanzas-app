@@ -1,13 +1,27 @@
 import streamlit as st
 from supabase import create_client
-from datetime import date, datetime
+from datetime import date
 import pandas as pd
 import plotly.express as px
 
 # 🔐 Conexión a Supabase
-url = "https://TU_PROYECTO.supabase.co"
-key = "TU_API_KEY"
+url = "https://ejsakzzbgwymptqjoigs.supabase.co"
+key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVqc2FrenpiZ3d5bXB0cWpvaWdzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUzOTQwOTMsImV4cCI6MjA3MDk3MDA5M30.IwadYpEJyQAR0zT4Qm6Ae1Q4ac3gqRkGVz0xzhRe3m0"
 supabase = create_client(url, key)
+
+# 🔐 Inicio de sesión
+if "supabase_session" not in st.session_state:
+    st.markdown("## 🔐 Iniciar sesión")
+    email = st.text_input("Correo electrónico")
+    password = st.text_input("Contraseña", type="password")
+    if st.button("Iniciar sesión"):
+        res = supabase.auth.sign_in_with_password({"email": email, "password": password})
+        if res.get("session"):
+            st.session_state["supabase_session"] = res["session"]
+            st.success("✅ Sesión iniciada correctamente. Recarga la página.")
+        else:
+            st.error("❌ Error al iniciar sesión. Verifica tus credenciales.")
+    st.stop()
 
 # 🧩 Funciones auxiliares
 def get_user_id():
@@ -102,7 +116,6 @@ def mostrar_grafico_transacciones(transacciones):
     st.plotly_chart(fig, use_container_width=True)
 
 def mostrar_notificaciones(creditos):
-    hoy = date.today()
     for c in creditos:
         restante = c["plazo_meses"] - c["meses_pagados"]
         if restante <= 2 and restante > 0:
@@ -157,18 +170,6 @@ with st.container():
     if st.button("Guardar crédito"):
         insertar_credito(user_id, nombre_credito, monto_credito, tasa_anual, plazo_meses, cuota_mensual, meses_pagados)
 
-# 🧾 Panel de gestión: Transacciones
-with st.container():
-    st.markdown("### 🧾 Tus transacciones")
-    transacciones = supabase.table("transacciones").select("*").eq("user_id", user_id).order("fecha", desc=True).execute().data
-    mostrar_grafico_transacciones(transacciones)
-    exportar_csv("transacciones", transacciones)
-    for t in transacciones:
-        with st.expander(f"{t['tipo']} - {t['categoria']} - ${t['monto']:,.2f} ({t['fecha']})"):
-            if st.button(f"🗑️ Eliminar transacción {t['id']}", key=f"del_tx_{t['id']}"):
-                eliminar_transaccion(t["id"])
-                st.success("Transacción eliminada.")
-
 # 💼 Panel de gestión: Créditos
 with st.container():
     st.markdown("### 💼 Tus créditos")
@@ -189,7 +190,6 @@ with st.container():
             if st.button(f"🗑️ Eliminar crédito {c['id']}", key=f"del_cr_{c['id']}"):
                 eliminar_credito(c["id"])
                 st.success("Crédito eliminado.")
-
 
 
 # -------------------
