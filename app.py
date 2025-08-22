@@ -16,8 +16,8 @@ if "supabase_session" not in st.session_state:
     password = st.text_input("Contraseña", type="password")
     if st.button("Iniciar sesión"):
         res = supabase.auth.sign_in_with_password({"email": email, "password": password})
-        if res.get("session"):
-            st.session_state["supabase_session"] = res["session"]
+        if res.session:
+            st.session_state["supabase_session"] = res.session
             st.success("✅ Sesión iniciada correctamente. Recarga la página.")
         else:
             st.error("❌ Error al iniciar sesión. Verifica tus credenciales.")
