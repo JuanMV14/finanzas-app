@@ -50,12 +50,12 @@ def insertar_credito(user_id, nombre, monto, tasa, plazo, cuota, pagados):
         "cuota_mensual": cuota,
         "cuotas_pagadas": pagados
     }
-    supabase.table("creditos").insert(data).execute()
+    supabase.table("credito").insert(data).execute()
     st.success("✅ Crédito guardado.")
     st.session_state["actualizar_resumen"] = True
 
 def obtener_resumen_financiero(user_id):
-    ingresos = gastos = balance = creditos = 0.0
+    ingresos = gastos = balance = credito = 0.0
     transacciones = supabase.table("transacciones").select("*").eq("user_id", user_id).execute().data
     for t in transacciones:
         if t["tipo"] == "Ingreso":
@@ -63,12 +63,12 @@ def obtener_resumen_financiero(user_id):
         elif t["tipo"] == "Gasto":
             gastos += t["monto"]
     balance = ingresos - gastos
-    creditos_data = supabase.table("creditos").select("monto_total").eq("user_id", user_id).execute().data
-    creditos = sum(c["monto_total"] for c in creditos_data)
-    return ingresos, gastos, balance, creditos
+    credito_data = supabase.table("credito").select("monto_total").eq("user_id", user_id).execute().data
+    credito = sum(c["monto_total"] for c in credito_data)
+    return ingresos, gastos, balance, credito
 
 def eliminar_credito(id):
-    supabase.table("creditos").delete().eq("id", id).execute()
+    supabase.table("credito").delete().eq("id", id).execute()
     st.session_state["actualizar_resumen"] = True
 
 def eliminar_transaccion(id):
@@ -76,16 +76,16 @@ def eliminar_transaccion(id):
     st.session_state["actualizar_resumen"] = True
 
 def actualizar_credito(id, cuota, pagados):
-    supabase.table("creditos").update({
+    supabase.table("credito").update({
         "cuota_mensual": cuota,
         "cuotas_pagadas": pagados
     }).eq("id", id).execute()
     st.success("✏️ Crédito actualizado.")
     st.session_state["actualizar_resumen"] = True
 
-def eliminar_creditos_saldados(user_id):
-    creditos = supabase.table("credito").select("*").eq("user_id", user_id).execute().data
-    for c in creditos:
+def eliminar_credito_saldados(user_id):
+    credito = supabase.table("credito").select("*").eq("user_id", user_id).execute().data
+    for c in credito:
         id_credito = c.get("identificacion", "desconocido")
         nombre_credito = c.get("Nombre", "Sin nombre")
 
@@ -104,7 +104,7 @@ def eliminar_creditos_saldados(user_id):
                 campos_faltantes.append("plazo_meses")
             st.warning(f"⚠️ Crédito con ID {id_credito} tiene campos faltantes: {', '.join(campos_faltantes)}")
 
-    for c in creditos:
+    for c in credito:
         if c["cuotas_pagadas"] >= c["plazo_meses"]:
             eliminar_credito(c["id"])
             st.info(f"💡 Crédito '{c['nombre_credito']}' eliminado automáticamente (saldado).")
@@ -126,8 +126,8 @@ def mostrar_grafico_transacciones(transacciones):
     fig = px.bar(resumen, x="mes", y="monto", color="tipo", barmode="group", title="📈 Evolución mensual")
     st.plotly_chart(fig, use_container_width=True)
 
-def mostrar_notificaciones(creditos):
-    for c in creditos:
+def mostrar_notificaciones(credito):
+    for c in credito:
         restante = c["plazo_meses"] - c["cuotas_pagadas"]
         if restante <= 2 and restante > 0:
             st.warning(f"🔔 Crédito '{c['nombre_credito']}' está por vencer ({restante} meses restantes).")
@@ -139,14 +139,14 @@ if not user_id:
     st.stop()
 
 # 🧹 Eliminar créditos saldados al cargar
-eliminar_creditos_saldados(user_id)
+eliminar_credito_saldados(user_id)
 
 # 🏠 Banner principal con resumen dinámico
 if "actualizar_resumen" not in st.session_state:
     st.session_state["actualizar_resumen"] = True
 
 if st.session_state["actualizar_resumen"]:
-    ingresos, gastos, balance, creditos = obtener_resumen_financiero(user_id)
+    ingresos, gastos, balance, credito = obtener_resumen_financiero(user_id)
     st.session_state["actualizar_resumen"] = False
 
 with st.container():
@@ -156,7 +156,7 @@ with st.container():
     col1.metric("Ingresos", f"${ingresos:,.2f}")
     col2.metric("Gastos", f"${gastos:,.2f}")
     col3.metric("Balance", f"${balance:,.2f}")
-    col4.metric("Créditos", f"${creditos:,.2f}")
+    col4.metric("Créditos", f"${credito:,.2f}")
     st.markdown("---")
 
 # 📂 Sección: Nueva transacción
@@ -198,16 +198,16 @@ with st.container():
     st.markdown("### 💼 Tus créditos")
 
     # Obtener créditos del usuario
-    creditos_data = supabase.table("creditos").select("*").eq("user_id", user_id).order("nombre_credito").execute().data
+    credito_data = supabase.table("credito").select("*").eq("user_id", user_id).order("nombre_credito").execute().data
 
     # Mostrar notificaciones de créditos por vencer
-    mostrar_notificaciones(creditos_data)
+    mostrar_notificaciones(credito_data)
 
     # Exportar créditos a CSV
-    exportar_csv("creditos", creditos_data)
+    exportar_csv("credito", credito_data)
 
     # Mostrar cada crédito en un expander
-    for c in creditos_data:
+    for c in credito_data:
         with st.expander(f"{c['nombre_credito']} - ${c['monto_total']:,.2f}"):
             st.write(f"Plazo: {c['plazo_meses']} meses")
             st.write(f"Meses pagados: {c['cuotas_pagadas']}")
