@@ -108,7 +108,7 @@ def eliminar_creditos_saldados(user_id):
                 eliminar_credito(id_credito)
                 st.info(f"✅ Crédito '{nombre}' eliminado automáticamente (saldado).")
 
-    except Exception as e:
+        except Exception as e:
         st.error("❌ Error al procesar créditos saldados.")
         st.write("Detalles del error:", e)
 
