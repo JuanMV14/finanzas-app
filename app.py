@@ -131,10 +131,26 @@ def mostrar_notificaciones(credito):
             st.warning(f"🔔 Crédito '{c['nombre_credito']}' está por vencer ({restante} meses restantes).")
 
 # 🔐 Validación de sesión
+# 🔐 Verifica autenticación
 user_id = get_user_id()
 if not user_id:
-    st.warning("🔒 Debes iniciar sesión para usar la app.")
+    st.warning("🔒 Debes iniciar sesión para ver tu resumen financiero.")
     st.stop()
+
+# 📊 Llama a la función y maneja errores
+try:
+    ingresos, gastos, balance, total_creditos = obtener_resumen_financiero(user_id)
+except Exception as e:
+    st.error(f"❌ Error al obtener el resumen financiero: {e}")
+    st.stop()
+
+# 📈 Muestra métricas
+st.subheader("📊 Resumen financiero")
+col1, col2, col3, col4 = st.columns(4)
+col1.metric("Ingresos", f"${ingresos:,.2f}")
+col2.metric("Gastos", f"${gastos:,.2f}")
+col3.metric("Balance", f"${balance:,.2f}")
+col4.metric("Créditos", f"${total_creditos:,.2f}")
 
 # 🧹 Eliminar créditos saldados al cargar
 eliminar_credito_saldados(user_id)
