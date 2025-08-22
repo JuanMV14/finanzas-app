@@ -26,7 +26,7 @@ if "supabase_session" not in st.session_state:
 # 🧩 Funciones auxiliares
 def get_user_id():
     session = st.session_state.get("supabase_session")
-    return session["user"]["id"] if session else None
+    return session.user.id if session else None
 
 def insertar_transaccion(user_id, tipo, categoria, monto, fecha):
     if not all([tipo, categoria, monto, fecha]):
