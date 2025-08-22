@@ -86,10 +86,17 @@ def actualizar_credito(id, cuota, pagados):
 def eliminar_creditos_saldados(user_id):
     try:
         creditos = supabase.table("credito").select("*").eq("user_id", user_id).execute().data
+        for c in creditos:
+            if "meses_pagados" in c and "plazo_meses" in c:
+                if c["meses_pagados"] >= c["plazo_meses"]:
+                    eliminar_credito(c["id"])
+                    st.info(f"💡 Crédito '{c['nombre_credito']}' eliminado automáticamente (saldado).")
+            else:
+                st.warning(f"⚠️ Crédito con ID {c.get('id')} tiene campos faltantes.")
     except Exception as e:
         st.error("❌ Error al consultar la tabla de créditos.")
         st.write("Detalles del error:", e)
-        return  # Evita que siga ejecutando si falla
+
     for c in creditos:
         if c["meses_pagados"] >= c["plazo_meses"]:
             eliminar_credito(c["id"])
