@@ -84,7 +84,12 @@ def actualizar_credito(id, cuota, pagados):
     st.session_state["actualizar_resumen"] = True
 
 def eliminar_creditos_saldados(user_id):
-    creditos = supabase.table("creditos").select("*").eq("user_id", user_id).execute().data
+    try:
+        creditos = supabase.table("creditos").select("*").eq("user_id", user_id).execute().data
+    except Exception as e:
+        st.error("❌ Error al consultar la tabla de créditos.")
+        st.write("Detalles del error:", e)
+        return  # Evita que siga ejecutando si falla
     for c in creditos:
         if c["meses_pagados"] >= c["plazo_meses"]:
             eliminar_credito(c["id"])
