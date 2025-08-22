@@ -1,309 +1,196 @@
 import streamlit as st
-from supabase import create_client, Client
+from supabase import create_client
+from datetime import date, datetime
 import pandas as pd
-from datetime import date
-import plotly.graph_objs as go
+import plotly.express as px
 
-# -------------------
-# CONFIGURACIÓN SUPABASE
-# -------------------
-SUPABASE_URL = "https://ejsakzzbgwymptqjoigs.supabase.co"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVqc2FrenpiZ3d5bXB0cWpvaWdzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTUzOTQwOTMsImV4cCI6MjA3MDk3MDA5M30.IwadYpEJyQAR0zT4Qm6Ae1Q4ac3gqRkGVz0xzhRe3m0"
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+# 🔐 Conexión a Supabase
+url = "https://TU_PROYECTO.supabase.co"
+key = "TU_API_KEY"
+supabase = create_client(url, key)
 
-st.set_page_config(page_title="💰 Finanzas Personales", layout="wide")
+# 🧩 Funciones auxiliares
+def get_user_id():
+    session = st.session_state.get("supabase_session")
+    return session["user"]["id"] if session else None
 
-# -------------------
-# SESIÓN
-# -------------------
-if "user" not in st.session_state:
-    st.session_state["user"] = None
-
-# -------------------
-# HELPERS AUTH
-# -------------------
-def _extract_user_from_auth_response(auth_resp):
-    try:
-        user_obj = getattr(auth_resp, "user", None)
-        if user_obj:
-            uid = getattr(user_obj, "id", None)
-            email = getattr(user_obj, "email", None) or getattr(user_obj, "user_metadata", {}).get("email")
-            if uid:
-                return {"id": str(uid), "email": email}
-    except Exception:
-        pass
-    return None
-
-def login(email, password):
-    try:
-        resp = supabase.auth.sign_in_with_password({"email": email, "password": password})
-        user = _extract_user_from_auth_response(resp)
-        if user:
-            st.session_state["user"] = user
-            st.success("Sesión iniciada ✅")
-            st.rerun()
-        else:
-            st.error("No se pudo extraer el usuario desde la respuesta de Supabase.")
-    except Exception as e:
-        st.error(f"Error al iniciar sesión: {e}")
-
-def signup(email, password):
-    try:
-        supabase.auth.sign_up({"email": email, "password": password})
-        st.success("Cuenta creada. Revisa tu email para confirmar (si aplica).")
-    except Exception as e:
-        st.error(f"Error al registrar: {e}")
-
-def logout():
-    try:
-        supabase.auth.sign_out()
-    except Exception:
-        pass
-    st.session_state["user"] = None
-    st.success("Sesión cerrada")
-    st.rerun()
-
-# -------------------
-# FUNCIONES DE DB
-# -------------------
 def insertar_transaccion(user_id, tipo, categoria, monto, fecha):
-    payload = {
-        "user_id": str(user_id),
+    if not all([tipo, categoria, monto, fecha]):
+        st.error("Todos los campos son obligatorios.")
+        return
+    data = {
+        "user_id": user_id,
         "tipo": tipo,
         "categoria": categoria,
-        "monto": float(monto),
+        "monto": monto,
         "fecha": str(fecha)
     }
-    return supabase.table("transacciones").insert(payload).execute()
+    res = supabase.table("transacciones").insert(data).execute()
+    if res.status_code == 201:
+        st.success("✅ Transacción guardada.")
+        st.session_state["actualizar_resumen"] = True
 
-def insertar_credito(user_id, nombre, monto, tasa, plazo_meses, cuotas_pagadas):
-    cuota_mensual = monto / plazo_meses if plazo_meses > 0 else monto
-    payload = {
-        "user_id": str(user_id),
-        "nombre": nombre,
-        "monto": float(monto),
-        "tasa_interes": float(tasa),
-        "plazo_meses": int(plazo_meses),
-        "cuotas_pagadas": int(cuotas_pagadas),
-        "cuota_mensual": cuota_mensual
+def insertar_credito(user_id, nombre, monto, tasa, plazo, cuota, pagados):
+    if not all([nombre, monto, plazo, cuota]) or plazo < 1:
+        st.error("Todos los campos son obligatorios y el plazo debe ser mayor a 0.")
+        return
+    data = {
+        "user_id": user_id,
+        "nombre_credito": nombre,
+        "monto_total": monto,
+        "tasa_anual": tasa,
+        "plazo_meses": plazo,
+        "cuota_mensual": cuota,
+        "meses_pagados": pagados
     }
-    return supabase.table("credito").insert(payload).execute()
+    res = supabase.table("creditos").insert(data).execute()
+    if res.status_code == 201:
+        st.success("✅ Crédito guardado.")
+        st.session_state["actualizar_resumen"] = True
 
-def borrar_transaccion(user_id, trans_id):
-    return supabase.table("transacciones").delete().eq("id", trans_id).eq("user_id", str(user_id)).execute()
+def obtener_resumen_financiero(user_id):
+    ingresos = gastos = balance = creditos = 0.0
+    transacciones = supabase.table("transacciones").select("*").eq("user_id", user_id).execute().data
+    for t in transacciones:
+        if t["tipo"] == "Ingreso":
+            ingresos += t["monto"]
+        elif t["tipo"] == "Gasto":
+            gastos += t["monto"]
+    balance = ingresos - gastos
+    creditos_data = supabase.table("creditos").select("monto_total").eq("user_id", user_id).execute().data
+    creditos = sum(c["monto_total"] for c in creditos_data)
+    return ingresos, gastos, balance, creditos
 
-# -------------------
-# UI: LOGIN / SIGNUP
-# -------------------
-st.sidebar.title("🔐 Usuario")
-if not st.session_state["user"]:
-    st.sidebar.subheader("Iniciar sesión")
-    in_email = st.sidebar.text_input("Email", key="login_email")
-    in_password = st.sidebar.text_input("Contraseña", type="password", key="login_pass")
-    if st.sidebar.button("Ingresar"):
-        login(in_email, in_password)
+def eliminar_credito(id):
+    supabase.table("creditos").delete().eq("id", id).execute()
+    st.session_state["actualizar_resumen"] = True
 
-    st.sidebar.markdown("---")
-    st.sidebar.subheader("Registrarse")
-    reg_email = st.sidebar.text_input("Nuevo email", key="reg_email")
-    reg_pass = st.sidebar.text_input("Nueva contraseña", type="password", key="reg_pass")
-    if st.sidebar.button("Crear cuenta"):
-        signup(reg_email, reg_pass)
-else:
-    user = st.session_state["user"]
-    st.sidebar.success(f"Conectado: {user.get('email', 'Usuario')}")
-    if st.sidebar.button("Cerrar sesión"):
-        logout()
+def eliminar_transaccion(id):
+    supabase.table("transacciones").delete().eq("id", id).execute()
+    st.session_state["actualizar_resumen"] = True
 
-# -------------------
-# APP PRINCIPAL
-# -------------------
-st.title("💰 Finanzas Personales - Dashboard")
+def actualizar_credito(id, cuota, pagados):
+    supabase.table("creditos").update({
+        "cuota_mensual": cuota,
+        "meses_pagados": pagados
+    }).eq("id", id).execute()
+    st.success("✏️ Crédito actualizado.")
+    st.session_state["actualizar_resumen"] = True
 
-if not st.session_state["user"]:
-    st.info("Inicia sesión para ver y gestionar tus finanzas.")
-    st.stop()
+def eliminar_creditos_saldados(user_id):
+    creditos = supabase.table("creditos").select("*").eq("user_id", user_id).execute().data
+    for c in creditos:
+        if c["meses_pagados"] >= c["plazo_meses"]:
+            eliminar_credito(c["id"])
+            st.info(f"💡 Crédito '{c['nombre_credito']}' eliminado automáticamente (saldado).")
 
-user = st.session_state["user"]
-user_id = user.get("id")
-
-# --- Panel para agregar transacción y crédito ---
-col_left, col_right = st.columns([2, 1])
-
-with col_left:
-    st.header("➕ Nueva transacción")
-    tipo = st.selectbox("Tipo", ["Ingreso", "Gasto", "Credito"])
-    categorias_por_tipo = {
-        "Ingreso": ["Salario", "Comisión", "Venta", "Otro"],
-        "Gasto": ["Comida", "Transporte", "Entretenimiento", "Servicios públicos", "Ocio", "Gasolina", "Ropa", "Otro"],
-        "Credito": ["Tarjeta de crédito", "Préstamo", "Otro"]
-    }
-    categoria = st.selectbox("Categoría", categorias_por_tipo[tipo])
-    if categoria == "Otro":
-        categoria_personalizada = st.text_input("Categoría personalizada")
-        if categoria_personalizada:
-            categoria = categoria_personalizada
-        else:
-            st.warning("Por favor ingresa una categoría personalizada.")
-            st.stop()
-
-    with st.form("form_trans"):
-        monto = st.number_input("Monto", min_value=0.01, step=0.01)
-        fecha = st.date_input("Fecha", value=date.today())
-        if st.form_submit_button("Guardar transacción"):
-            insertar_transaccion(user_id, tipo, categoria, monto, fecha)
-            st.success("✅ Transacción guardada")
-            st.rerun()
-
-with col_right:
-    st.header("➕ Nuevo crédito")
-    with st.form("form_credito"):
-        nombre = st.text_input("Nombre del crédito")
-        monto_c = st.number_input("Monto total del crédito", min_value=0.01, step=0.01)
-        tasa = st.number_input("Tasa anual (%)", min_value=0.0, step=0.01)
-        plazo = st.number_input("Plazo total (meses)", min_value=1, step=1)
-        cuota_mensual = st.number_input("Valor de la cuota mensual", min_value=0.01, step=0.01)
-        cuotas_pagadas = st.number_input("Meses pagados", min_value=0, max_value=plazo, step=1)
-
-        if st.form_submit_button("Guardar crédito"):
-            payload = {
-                "user_id": str(user_id),
-                "nombre": nombre,
-                "monto": float(monto_c),
-                "tasa_interes": float(tasa),
-                "plazo_meses": int(plazo),
-                "cuotas_pagadas": int(cuotas_pagadas),
-                "cuota_mensual": float(cuota_mensual)
-            }
-            supabase.table("credito").insert(payload).execute()
-            st.success("✅ Crédito guardado")
-            st.rerun()
-
-# -------------------
-# CARGAR DATOS
-# -------------------
-transacciones = supabase.table("transacciones").select("*").eq("user_id", str(user_id)).order("fecha", desc=True).execute().data
-creditos = supabase.table("credito").select("*").eq("user_id", str(user_id)).execute().data
-
-# ==============================
-# RESUMEN RÁPIDO
-# ==============================
-st.subheader("📊 Resumen financiero")
-if transacciones:
-    df = pd.DataFrame(transacciones)
-    total_ingresos = df[df["tipo"] == "Ingreso"]["monto"].sum()
-    total_gastos = df[df["tipo"] == "Gasto"]["monto"].sum()
-    balance = total_ingresos - total_gastos
-    total_creditos = sum([c.get("monto", 0) for c in creditos]) if creditos else 0
-
-    col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Ingresos", f"${total_ingresos:,.2f}")
-    col2.metric("Gastos", f"${total_gastos:,.2f}")
-    col3.metric("Balance", f"${balance:,.2f}")
-    col4.metric("Créditos", f"${total_creditos:,.2f}")
-else:
-    st.info("No hay transacciones registradas aún.")
-
-# ==============================
-# GRAFICOS
-# ==============================
-if transacciones:
-    df["fecha"] = pd.to_datetime(df["fecha"])
-    df["periodo"] = df["fecha"].dt.to_period("M").astype(str)
-
-    resumen = df.groupby(["periodo", "tipo"])["monto"].sum().reset_index()
-
-    fig = go.Figure()
-    for tipo in ["Ingreso", "Gasto", "Credito"]:
-        subset = resumen[resumen["tipo"] == tipo]
-        if not subset.empty:
-            fig.add_trace(go.Bar(x=subset["periodo"], y=subset["monto"], name=tipo))
-
-    fig.update_layout(
-        barmode="group",
-        title="Ingresos vs Gastos vs Créditos por Mes",
-        xaxis_title="Periodo",
-        yaxis_title="Monto"
+def exportar_csv(nombre, data):
+    df = pd.DataFrame(data)
+    st.download_button(
+        label=f"📤 Exportar {nombre} a CSV",
+        data=df.to_csv(index=False).encode("utf-8"),
+        file_name=f"{nombre}.csv",
+        mime="text/csv"
     )
 
+def mostrar_grafico_transacciones(transacciones):
+    df = pd.DataFrame(transacciones)
+    df["fecha"] = pd.to_datetime(df["fecha"])
+    df["mes"] = df["fecha"].dt.to_period("M").astype(str)
+    resumen = df.groupby(["mes", "tipo"])["monto"].sum().reset_index()
+    fig = px.bar(resumen, x="mes", y="monto", color="tipo", barmode="group", title="📈 Evolución mensual")
     st.plotly_chart(fig, use_container_width=True)
 
-    # 📊 Monto por categoría y tipo
-    df_cat_tipo = df.groupby(["tipo", "categoria"])["monto"].sum().reset_index()
-
-    fig_cat_tipo = go.Figure()
-    for tipo in df_cat_tipo["tipo"].unique():
-        subset = df_cat_tipo[df_cat_tipo["tipo"] == tipo]
-        fig_cat_tipo.add_trace(go.Bar(
-            x=subset["categoria"],
-            y=subset["monto"],
-            name=tipo
-        ))
-
-    fig_cat_tipo.update_layout(
-        barmode="group",
-        title="Montos por categoría y tipo",
-        xaxis_title="Categoría",
-        yaxis_title="Monto"
-    )
-
-    st.plotly_chart(fig_cat_tipo, use_container_width=True)
-
-# ==============================
-# PANEL DE TRANSACCIONES
-# ==============================
-st.header("📋 Mis transacciones")
-if transacciones:
-    df_trans = pd.DataFrame(transacciones)
-    df_trans["fecha"] = pd.to_datetime(df_trans["fecha"]).dt.date
-    df_trans = df_trans.sort_values("fecha", ascending=False)
-
-    st.dataframe(df_trans[["fecha", "tipo", "categoria", "monto"]], use_container_width=True)
-
-    trans_id = st.selectbox("Selecciona una transacción para eliminar", df_trans["id"])
-    if st.button("🗑 Eliminar transacción"):
-        borrar_transaccion(user_id, trans_id)
-        st.success("Transacción eliminada")
-        st.rerun()
-else:
-    st.info("No hay transacciones registradas.")
-
-# ==============================
-# PANEL DE CRÉDITOS EDITABLE
-# ==============================
-st.header("💳 Mis créditos")
-if creditos:
+def mostrar_notificaciones(creditos):
+    hoy = date.today()
     for c in creditos:
-        st.subheader(c.get("nombre", "Crédito"))
+        restante = c["plazo_meses"] - c["meses_pagados"]
+        if restante <= 2 and restante > 0:
+            st.warning(f"🔔 Crédito '{c['nombre_credito']}' está por vencer ({restante} meses restantes).")
 
-        monto = float(c.get("monto", 0) or 0)
-        tasa = float(c.get("tasa_interes", 0) or 0)
-        plazo = int(c.get("plazo_meses", 0) or 0)
+# 🔐 Validación de sesión
+user_id = get_user_id()
+if not user_id:
+    st.warning("🔒 Debes iniciar sesión para usar la app.")
+    st.stop()
 
-        # Validar cuota y meses pagados para evitar errores
-        cuota_mensual = max(float(c.get("cuota_mensual", 0) or 0), 0.01)
-        cuotas_pagadas = min(int(c.get("cuotas_pagadas", 0) or 0), plazo)
-        progreso = cuotas_pagadas / plazo if plazo > 0 else 0
+# 🧹 Eliminar créditos saldados al cargar
+eliminar_creditos_saldados(user_id)
 
-        st.write(f"Monto: ${monto:,.2f}")
-        st.write(f"Tasa interés: {tasa}%")
-        st.write(f"Plazo: {plazo} meses")
+# 🏠 Banner principal con resumen dinámico
+if "actualizar_resumen" not in st.session_state:
+    st.session_state["actualizar_resumen"] = True
 
-        with st.form(f"editar_credito_{c['id']}"):
-            nueva_cuota = st.number_input("Editar cuota mensual", value=cuota_mensual, min_value=0.01, step=0.01)
-            nuevos_pagados = st.number_input("Editar meses pagados", value=cuotas_pagadas, min_value=0, max_value=plazo, step=1)
-            if st.form_submit_button("Actualizar"):
-                supabase.table("credito").update({
-                    "cuota_mensual": nueva_cuota,
-                    "cuotas_pagadas": nuevos_pagados
-                }).eq("id", c["id"]).eq("user_id", str(user_id)).execute()
-                st.success("✅ Crédito actualizado")
-                st.rerun()
+if st.session_state["actualizar_resumen"]:
+    ingresos, gastos, balance, creditos = obtener_resumen_financiero(user_id)
+    st.session_state["actualizar_resumen"] = False
 
-        st.write(f"Cuota mensual: ${cuota_mensual:,.2f}")
-        st.progress(progreso)
-else:
-    st.info("No hay créditos registrados.")
+with st.container():
+    st.markdown("## 💰 Finanzas Personales - Dashboard")
+    st.markdown("### 📊 Resumen financiero")
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("Ingresos", f"${ingresos:,.2f}")
+    col2.metric("Gastos", f"${gastos:,.2f}")
+    col3.metric("Balance", f"${balance:,.2f}")
+    col4.metric("Créditos", f"${creditos:,.2f}")
+    st.markdown("---")
+
+# 📂 Sección: Nueva transacción
+with st.container():
+    st.markdown("### ➕ Nueva transacción")
+    tipo = st.selectbox("Tipo", ["Ingreso", "Gasto"])
+    categoria = st.text_input("Categoría")
+    monto = st.number_input("Monto", min_value=0.01, format="%.2f")
+    fecha = st.date_input("Fecha", value=date.today())
+    if st.button("Guardar transacción"):
+        insertar_transaccion(user_id, tipo, categoria, monto, fecha)
+
+# 💳 Sección: Nuevo crédito
+with st.container():
+    st.markdown("### 🏦 Nuevo crédito")
+    nombre_credito = st.text_input("Nombre del crédito")
+    monto_credito = st.number_input("Monto total del crédito", min_value=0.01, format="%.2f")
+    tasa_anual = st.number_input("Tasa anual (%)", min_value=0.0, format="%.2f")
+    plazo_meses = st.number_input("Plazo total (meses)", min_value=1)
+    cuota_mensual = st.number_input("Valor de la cuota mensual", min_value=0.01, format="%.2f")
+    meses_pagados = st.number_input("Meses pagados", min_value=0)
+    if st.button("Guardar crédito"):
+        insertar_credito(user_id, nombre_credito, monto_credito, tasa_anual, plazo_meses, cuota_mensual, meses_pagados)
+
+# 🧾 Panel de gestión: Transacciones
+with st.container():
+    st.markdown("### 🧾 Tus transacciones")
+    transacciones = supabase.table("transacciones").select("*").eq("user_id", user_id).order("fecha", desc=True).execute().data
+    mostrar_grafico_transacciones(transacciones)
+    exportar_csv("transacciones", transacciones)
+    for t in transacciones:
+        with st.expander(f"{t['tipo']} - {t['categoria']} - ${t['monto']:,.2f} ({t['fecha']})"):
+            if st.button(f"🗑️ Eliminar transacción {t['id']}", key=f"del_tx_{t['id']}"):
+                eliminar_transaccion(t["id"])
+                st.success("Transacción eliminada.")
+
+# 💼 Panel de gestión: Créditos
+with st.container():
+    st.markdown("### 💼 Tus créditos")
+    creditos_data = supabase.table("creditos").select("*").eq("user_id", user_id).order("nombre_credito").execute().data
+    mostrar_notificaciones(creditos_data)
+    exportar_csv("creditos", creditos_data)
+
+    for c in creditos_data:
+        with st.expander(f"{c['nombre_credito']} - ${c['monto_total']:,.2f}"):
+            st.write(f"Plazo: {c['plazo_meses']} meses | Pagados: {c['meses_pagados']} | Cuota: ${c['cuota_mensual']:,.2f}")
+            
+            nueva_cuota = st.number_input("Editar cuota mensual", value=c["cuota_mensual"], key=f"cuota_{c['id']}")
+            nuevos_pagados = st.number_input("Editar meses pagados", value=c["meses_pagados"], key=f"pagados_{c['id']}")
+            
+            if st.button(f"✏️ Actualizar crédito {c['id']}", key=f"edit_cr_{c['id']}"):
+                actualizar_credito(c["id"], nueva_cuota, nuevos_pagados)
+            
+            if st.button(f"🗑️ Eliminar crédito {c['id']}", key=f"del_cr_{c['id']}"):
+                eliminar_credito(c["id"])
+                st.success("Crédito eliminado.")
+
+
 
 # -------------------
 # FIRMA
