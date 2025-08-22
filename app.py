@@ -85,7 +85,7 @@ def actualizar_credito(id, cuota, pagados):
 
 def eliminar_creditos_saldados(user_id):
     try:
-        creditos = supabase.table("creditos").select("*").eq("user_id", user_id).execute().data
+        creditos = supabase.table("credito").select("*").eq("user_id", user_id).execute().data
     except Exception as e:
         st.error("❌ Error al consultar la tabla de créditos.")
         st.write("Detalles del error:", e)
