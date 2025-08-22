@@ -55,17 +55,15 @@ def insertar_credito(user_id, nombre, monto, tasa, plazo, cuota, pagados):
     st.session_state["actualizar_resumen"] = True
 
 def obtener_resumen_financiero(user_id):
-    ingresos = gastos = balance = credito = 0.0
     transacciones = supabase.table("transacciones").select("*").eq("user_id", user_id).execute().data
-    for t in transacciones:
-        if t["tipo"] == "Ingreso":
-            ingresos += t["monto"]
-        elif t["tipo"] == "Gasto":
-            gastos += t["monto"]
+    creditos = supabase.table("credito").select("monto").eq("user_id", user_id).execute().data
+
+    ingresos = sum(t["monto"] for t in transacciones if t["tipo"] == "ingreso")
+    gastos = sum(t["monto"] for t in transacciones if t["tipo"] == "gasto")
     balance = ingresos - gastos
-    credito_data = supabase.table("credito").select("monto").eq("user_id", user_id).execute().data
-    credito = sum(c["monto"] for c in credito_data)
-    return ingresos, gastos, balance, credito
+    total_creditos = sum(c["monto"] for c in creditos)
+
+    return ingresos, gastos, balance, total_creditos
 
 def eliminar_credito(id):
     supabase.table("credito").delete().eq("id", id).execute()
