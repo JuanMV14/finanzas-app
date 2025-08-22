@@ -44,7 +44,7 @@ def insertar_credito(user_id, nombre, monto, tasa, plazo, cuota, pagados):
     data = {
         "user_id": user_id,
         "nombre_credito": nombre,
-        "monto_total": monto,
+        "monto": monto,
         "tasa_anual": tasa,
         "plazo_meses": plazo,
         "cuota_mensual": cuota,
@@ -63,8 +63,8 @@ def obtener_resumen_financiero(user_id):
         elif t["tipo"] == "Gasto":
             gastos += t["monto"]
     balance = ingresos - gastos
-    credito_data = supabase.table("credito").select("monto_total").eq("user_id", user_id).execute().data
-    credito = sum(c["monto_total"] for c in credito_data)
+    credito_data = supabase.table("credito").select("monto").eq("user_id", user_id).execute().data
+    credito = sum(c["monto"] for c in credito_data)
     return ingresos, gastos, balance, credito
 
 def eliminar_credito(id):
@@ -208,7 +208,7 @@ with st.container():
 
     # Mostrar cada crédito en un expander
     for c in credito_data:
-        with st.expander(f"{c['nombre_credito']} - ${c['monto_total']:,.2f}"):
+        with st.expander(f"{c['nombre_credito']} - ${c['monto']:,.2f}"):
             st.write(f"Plazo: {c['plazo_meses']} meses")
             st.write(f"Meses pagados: {c['cuotas_pagadas']}")
             st.write(f"Cuota mensual: ${c['cuota_mensual']:,.2f}")
