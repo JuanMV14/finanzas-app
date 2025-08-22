@@ -109,8 +109,8 @@ def eliminar_creditos_saldados(user_id):
                 st.info(f"✅ Crédito '{nombre}' eliminado automáticamente (saldado).")
 
         except Exception as e:
-        st.error("❌ Error al procesar créditos saldados.")
-        st.write("Detalles del error:", e)
+            st.error("❌ Error al procesar créditos saldados.")
+            st.write("Detalles del error:", e)
 
     for c in creditos:
         if c["meses_pagados"] >= c["plazo_meses"]:
