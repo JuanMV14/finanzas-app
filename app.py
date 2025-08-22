@@ -48,7 +48,7 @@ def insertar_credito(user_id, nombre, monto, tasa, plazo, cuota, pagados):
         "tasa_anual": tasa,
         "plazo_meses": plazo,
         "cuota_mensual": cuota,
-        "meses_pagados": pagados
+        "cuotas_pagadas": pagados
     }
     supabase.table("creditos").insert(data).execute()
     st.success("✅ Crédito guardado.")
@@ -78,7 +78,7 @@ def eliminar_transaccion(id):
 def actualizar_credito(id, cuota, pagados):
     supabase.table("creditos").update({
         "cuota_mensual": cuota,
-        "meses_pagados": pagados
+        "cuotas_pagadas": pagados
     }).eq("id", id).execute()
     st.success("✏️ Crédito actualizado.")
     st.session_state["actualizar_resumen"] = True
@@ -105,7 +105,7 @@ def eliminar_creditos_saldados(user_id):
             st.warning(f"⚠️ Crédito con ID {id_credito} tiene campos faltantes: {', '.join(campos_faltantes)}")
 
     for c in creditos:
-        if c["meses_pagados"] >= c["plazo_meses"]:
+        if c["cuotas_pagadas"] >= c["plazo_meses"]:
             eliminar_credito(c["id"])
             st.info(f"💡 Crédito '{c['nombre_credito']}' eliminado automáticamente (saldado).")
 
@@ -128,7 +128,7 @@ def mostrar_grafico_transacciones(transacciones):
 
 def mostrar_notificaciones(creditos):
     for c in creditos:
-        restante = c["plazo_meses"] - c["meses_pagados"]
+        restante = c["plazo_meses"] - c["cuotas_pagadas"]
         if restante <= 2 and restante > 0:
             st.warning(f"🔔 Crédito '{c['nombre_credito']}' está por vencer ({restante} meses restantes).")
 
@@ -177,9 +177,9 @@ with st.container():
     tasa_anual = st.number_input("Tasa anual (%)", min_value=0.0, format="%.2f")
     plazo_meses = st.number_input("Plazo total (meses)", min_value=1)
     cuota_mensual = st.number_input("Valor de la cuota mensual", min_value=0.01, format="%.2f")
-    meses_pagados = st.number_input("Meses pagados", min_value=0)
+    cuotas_pagadas = st.number_input("Meses pagados", min_value=0)
     if st.button("Guardar crédito"):
-        insertar_credito(user_id, nombre_credito, monto_credito, tasa_anual, plazo_meses, cuota_mensual, meses_pagados)
+        insertar_credito(user_id, nombre_credito, monto_credito, tasa_anual, plazo_meses, cuota_mensual, cuotas_pagadas)
 
 # 🧾 Panel de gestión: Transacciones
 with st.container():
@@ -210,7 +210,7 @@ with st.container():
     for c in creditos_data:
         with st.expander(f"{c['nombre_credito']} - ${c['monto_total']:,.2f}"):
             st.write(f"Plazo: {c['plazo_meses']} meses")
-            st.write(f"Meses pagados: {c['meses_pagados']}")
+            st.write(f"Meses pagados: {c['cuotas_pagadas']}")
             st.write(f"Cuota mensual: ${c['cuota_mensual']:,.2f}")
             st.write(f"Tasa anual: {c['tasa_anual']}%")
 
@@ -224,7 +224,7 @@ with st.container():
             )
             nuevos_pagados = st.number_input(
                 "Editar meses pagados",
-                value=c["meses_pagados"],
+                value=c["cuotas_pagadas"],
                 min_value=0,
                 max_value=c["plazo_meses"],
                 key=f"pagados_{c['id']}"
