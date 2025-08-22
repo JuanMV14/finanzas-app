@@ -128,3 +128,14 @@ else:
                 st.write(f"📌 {c['nombre']} - {c['monto']} - {c['plazo_meses']} meses")
         else:
             st.info("No tienes créditos registrados.")
+def mostrar_credito(credito):
+    st.write(f"💳 {credito['nombre']}")
+    progreso = credito['cuotas_pagadas'] / credito['plazo_meses']
+    st.progress(progreso)
+
+    st.write(f"Pagadas: {credito['cuotas_pagadas']} de {credito['plazo_meses']}")
+    st.write(f"Faltan: {credito['plazo_meses'] - credito['cuotas_pagadas']} meses")
+
+    if st.button(f"Registrar pago de {credito['nombre']}"):
+        registrar_pago(supabase, credito['id'])
+        st.success("✅ Pago registrado")
