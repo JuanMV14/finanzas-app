@@ -59,7 +59,10 @@ def obtener_creditos(user_id):
     )
 
 def registrar_pago(supabase, credito_id):
-    """Aumenta en 1 la cuota pagada de un crédito"""
-    supabase.table("credito").update({
+    """
+    Aumenta en 1 la cuota pagada de un crédito.
+    """
+    response = supabase.table("credito").update({
         "cuotas_pagadas": supabase.sql("cuotas_pagadas + 1")
     }).eq("id", credito_id).execute()
+    return response
