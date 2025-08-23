@@ -163,3 +163,28 @@ for credito in creditos:
             st.experimental_rerun()
         else:
             st.warning("⚠️ Este crédito ya está totalmente pagado.")
+
+# Recuperar créditos desde Supabase
+creditos = obtener_creditos(st.session_state["user"]["id"])
+
+if creditos:
+    st.subheader("Tus créditos")
+    for credito in creditos:
+        st.markdown(f"**{credito['nombre']}** - ${credito['monto']} - {credito['plazo_meses']} meses")
+
+        progreso = credito["cuotas_pagadas"] / credito["plazo_meses"] if credito["plazo_meses"] > 0 else 0
+        st.progress(progreso)
+
+        if st.button(f"Registrar pago {credito['nombre']}", key=credito["id"]):
+            if credito["cuotas_pagadas"] < credito["plazo_meses"]:
+                update_credito(
+                    credito["id"],
+                    {"cuotas_pagadas": credito["cuotas_pagadas"] + 1}
+                )
+                st.success("✅ Pago registrado")
+                st.rerun()
+            else:
+                st.warning("⚠️ Este crédito ya está totalmente pagado.")
+else:
+    st.info("No tienes créditos registrados.")
+
