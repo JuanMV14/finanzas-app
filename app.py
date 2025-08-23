@@ -127,7 +127,7 @@ else:
         if creditos:
             st.subheader("Tus créditos")
             for c in creditos:
-                #st.write(f"📌 {c['nombre']} - {c['monto']} - {c['plazo_meses']} meses")
+                st.write(f"📌 {c['nombre']} - {c['monto']} - {c['plazo_meses']} meses")
         else:
             st.info("No tienes créditos registrados.")
 def mostrar_credito(supabase, credito):
