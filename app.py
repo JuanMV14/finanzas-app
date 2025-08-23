@@ -125,9 +125,9 @@ else:
 
         creditos = obtener_creditos(st.session_state["user"]["id"])
         if creditos:
-            st.subheader("Tus créditos")
-            for c in creditos:
-                st.write(f"📌 {c['nombre']} - {c['monto']} - {c['plazo_meses']} meses")
+            #st.subheader("Tus créditos")
+            #for c in creditos:
+                #st.write(f"📌 {c['nombre']} - {c['monto']} - {c['plazo_meses']} meses")
         else:
             st.info("No tienes créditos registrados.")
 def mostrar_credito(supabase, credito):
