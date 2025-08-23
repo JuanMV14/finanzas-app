@@ -2,6 +2,7 @@ import streamlit as st
 from supabase import create_client
 from dotenv import load_dotenv
 import os
+from queries import registrar_pago
 
 # Cargar variables de entorno
 load_dotenv()
@@ -128,14 +129,17 @@ else:
                 st.write(f"📌 {c['nombre']} - {c['monto']} - {c['plazo_meses']} meses")
         else:
             st.info("No tienes créditos registrados.")
-def mostrar_credito(credito):
-    st.write(f"💳 {credito['nombre']}")
+def mostrar_credito(supabase, credito):
+    st.subheader(f"💳 {credito['nombre']}")
+    
     progreso = credito['cuotas_pagadas'] / credito['plazo_meses']
     st.progress(progreso)
 
-    st.write(f"Pagadas: {credito['cuotas_pagadas']} de {credito['plazo_meses']}")
-    st.write(f"Faltan: {credito['plazo_meses'] - credito['cuotas_pagadas']} meses")
+    st.write(f"📊 Pagadas: {credito['cuotas_pagadas']} de {credito['plazo_meses']}")
+    st.write(f"📅 Faltan: {credito['plazo_meses'] - credito['cuotas_pagadas']} meses")
+    st.write(f"💰 Cuota mensual: {credito['cuota_mensual']:.2f}")
 
-    if st.button(f"Registrar pago de {credito['nombre']}"):
+    if st.button(f"Registrar pago ➕", key=credito['id']):
         registrar_pago(supabase, credito['id'])
-        st.success("✅ Pago registrado")
+        st.success("✅ Pago registrado correctamente")
+        st.experimental_rerun()  # refresca la pantalla para ver el cambio
