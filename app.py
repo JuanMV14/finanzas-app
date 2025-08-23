@@ -123,13 +123,13 @@ else:
                 else:
                     st.error("Error al guardar el crédito")
 
-        creditos = obtener_creditos(st.session_state["user"]["id"])
+        #creditos = obtener_creditos(st.session_state["user"]["id"])
         #if creditos:
             #st.subheader("Tus créditos")
             #for c in creditos:
                 #st.write(f"📌 {c['nombre']} - {c['monto']} - {c['plazo_meses']} meses")
-        else:
-            st.info("No tienes créditos registrados.")
+        #else:
+            #st.info("No tienes créditos registrados.")
 def mostrar_credito(supabase, credito):
     st.subheader(f"💳 {credito['nombre']}")
     
