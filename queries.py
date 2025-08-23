@@ -58,11 +58,45 @@ def obtener_creditos(user_id):
         .data
     )
 
-def registrar_pago(supabase, credito_id):
+def update_credito(credito_id, fields: dict):
+    """
+    Actualiza cualquier campo de un crédito en la tabla 'credito'.
+    Ejemplo: update_credito("uuid-del-credito", {"cuotas_pagadas": 5})
+    """
+    return (
+        supabase.table("credito")
+        .update(fields)
+        .eq("id", str(credito_id))
+        .execute()
+    )
+
+def registrar_pago(credito_id):
     """
     Aumenta en 1 la cuota pagada de un crédito.
     """
-    response = supabase.table("credito").update({
-        "cuotas_pagadas": supabase.sql("cuotas_pagadas + 1")
-    }).eq("id", credito_id).execute()
-    return response
+    # 1. Traer el crédito
+    credito = (
+        supabase.table("credito")
+        .select("cuotas_pagadas, plazo_meses")
+        .eq("id", str(credito_id))
+        .single()
+        .execute()
+        .data
+    )
+
+    if not credito:
+        return {"error": "Crédito no encontrado"}
+
+    cuotas_actuales = credito["cuotas_pagadas"]
+    plazo = credito["plazo_meses"]
+
+    if cuotas_actuales >= plazo:
+        return {"error": "El crédito ya está totalmente pagado"}
+
+    # 2. Actualizar
+    return (
+        supabase.table("credito")
+        .update({"cuotas_pagadas": cuotas_actuales + 1})
+        .eq("id", str(credito_id))
+        .execute()
+    )
