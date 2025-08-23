@@ -3,6 +3,7 @@ from supabase import create_client
 from dotenv import load_dotenv
 import os
 from queries import registrar_pago
+from queries import update_credito
 
 # Cargar variables de entorno
 load_dotenv()
@@ -143,3 +144,22 @@ def mostrar_credito(supabase, credito):
         registrar_pago(supabase, credito['id'])
         st.success("✅ Pago registrado correctamente")
         st.experimental_rerun()  # refresca la pantalla para ver el cambio
+
+for credito in creditos:
+    st.write(f"📌 {credito['nombre']} - {credito['monto']} - {credito['plazo_meses']} meses")
+
+    # Barra de progreso
+    progreso = credito["cuotas_pagadas"] / credito["plazo_meses"]
+    st.progress(progreso)
+
+    # Botón para registrar pago
+    if st.button(f"Registrar pago {credito['nombre']}", key=credito["id"]):
+        if credito["cuotas_pagadas"] < credito["plazo_meses"]:
+            update_credito(
+                credito["id"],
+                {"cuotas_pagadas": credito["cuotas_pagadas"] + 1}
+            )
+            st.success("✅ Pago registrado")
+            st.experimental_rerun()
+        else:
+            st.warning("⚠️ Este crédito ya está totalmente pagado.")
