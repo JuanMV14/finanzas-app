@@ -1,14 +1,18 @@
-# Core
-streamlit==1.38.0
-python-dotenv==1.0.1
+# requirements.txt para la app de Finanzas Personales
 
-# Supabase client
-supabase==2.5.1
+# --- Core ---
+streamlit>=1.32
+supabase
+python-dotenv
+pandas
+numpy
 
-# Utilidades
-requests==2.32.3
-pandas==2.2.2
-numpy==2.0.1
+# --- Exportar datos ---
+xlsxwriter     # para exportar a Excel
 
-# Manejo de fechas
-python-dateutil==2.9.0.post0
+# --- Visualización ---
+matplotlib     # gráficos principales
+altair         # fallback si matplotlib no está disponible
+
+# --- Opcionales / utilidades ---
+openpyxl       # soporte adicional para Excel
