@@ -170,19 +170,22 @@ with tabs[1]:
             monto = st.number_input("Monto del crédito", min_value=0.0, step=1000.0, format="%.2f")
             plazo_meses = st.number_input("Plazo (meses)", min_value=1, step=1)
             tasa_anual = st.number_input("Tasa efectiva anual (EA) %", min_value=0.0, step=0.01, format="%.2f")
+            cuota_mensual = st.number_input("Cuota mensual real", min_value=0.0, step=1000.0, format="%.2f")
             submitted_credito = st.form_submit_button("Guardar crédito")
 
             if submitted_credito:
                 try:
-                    # Caso 1: función que recibe argumentos sueltos
-                    resp = insertar_credito(st.session_state["user"]["id"], nombre, monto, plazo_meses, tasa_anual)
+                    resp = insertar_credito(
+                        st.session_state["user"]["id"],
+                        nombre, monto, plazo_meses, tasa_anual, cuota_mensual
+                    )
                 except TypeError:
-                    # Caso 2: función que recibe un dict (compatibilidad)
                     payload = {
                         "nombre": nombre,
                         "monto": monto,
                         "plazo_meses": plazo_meses,
-                        "tasa": tasa_anual,          # guardamos en el campo "tasa" (EA %)
+                        "tasa_interes": tasa_anual,  # guardamos en el campo real
+                        "cuota_mensual": cuota_mensual,
                         "cuotas_pagadas": 0
                     }
                     resp = insertar_credito(st.session_state["user"]["id"], payload)
@@ -196,60 +199,58 @@ with tabs[1]:
     # ---------- Listado de créditos ----------
     creditos = obtener_creditos(st.session_state["user"]["id"])
 
+    def calcular_saldo_insoluto(cuota, tasa_anual, plazo_total, cuotas_pagadas):
+        """
+        Calcula saldo insoluto con sistema francés usando la cuota real
+        """
+        # Convertir EA a tasa efectiva mensual
+        tasa_mensual = (1 + tasa_anual / 100) ** (1 / 12) - 1 if tasa_anual > 0 else 0.0
+        n_restantes = plazo_total - cuotas_pagadas
+
+        if n_restantes <= 0:
+            return 0.0
+
+        if tasa_mensual == 0:
+            return max(0.0, cuota * n_restantes)
+
+        saldo = cuota * (1 - (1 + tasa_mensual) ** (-n_restantes)) / tasa_mensual
+        return round(saldo, 2)
+
     if creditos:
         for credito in creditos:
-            # Lectura robusta de campos
             nombre = str(credito.get("nombre", "Sin nombre"))
             monto = float(credito.get("monto", 0) or 0)
             plazo_meses = int(credito.get("plazo_meses", 0) or 0)
             tasa_anual = float(credito.get("tasa_interes") or 0)
+            cuota_mensual = float(credito.get("cuota_mensual") or 0)
             cuotas_pagadas = int(credito.get("cuotas_pagadas", 0) or 0)
 
-            # Normalizaciones
-            cuotas_pagadas = max(0, min(cuotas_pagadas, plazo_meses))  # clamp 0..n
+            cuotas_pagadas = max(0, min(cuotas_pagadas, plazo_meses))
 
-            # Tasa efectiva mensual desde EA
-            tasa_mensual = (1 + tasa_anual / 100) ** (1 / 12) - 1 if tasa_anual > 0 else 0.0
+            # ✅ Calcular saldo real con cuota y tasa
+            saldo_restante = calcular_saldo_insoluto(
+                cuota=cuota_mensual,
+                tasa_anual=tasa_anual,
+                plazo_total=plazo_meses,
+                cuotas_pagadas=cuotas_pagadas
+            )
 
-            # Cálculo de cuota y saldo
-            if plazo_meses <= 0:
-                cuota = 0.0
-                saldo_restante = monto
-                st.warning(f"⚠️ '{nombre}': Plazo 0 meses. Revisa la configuración.")
-            elif tasa_mensual == 0:
-                # Crédito sin intereses
-                cuota = monto / plazo_meses
-                saldo_restante = max(0.0, monto - cuotas_pagadas * cuota)
-            else:
-                # Sistema francés (cuota fija)
-                cuota = monto * (tasa_mensual / (1 - (1 + tasa_mensual) ** (-plazo_meses)))
-                k = cuotas_pagadas
-                saldo_restante = monto * (
-                    ((1 + tasa_mensual) ** plazo_meses - (1 + tasa_mensual) ** k)
-                    / ((1 + tasa_mensual) ** plazo_meses - 1)
-                )
-
-            # Evitar residuos por flotantes
-            saldo_restante = max(0.0, float(saldo_restante))
-
-            # Progreso por cuotas
             progreso = (cuotas_pagadas / plazo_meses) if plazo_meses > 0 else 0.0
 
             st.subheader(f"🏦 {nombre}")
 
-            # Barra progresiva por crédito (por cuotas pagadas)
+            # Barra progresiva
             st.markdown(
                 f"""
                 <div style="background:#eee;border-radius:10px;overflow:hidden;height:22px;margin:6px 0 12px 0;">
-                    <div style="
-                        width:{progreso*100:.2f}%;
-                        background:#2196F3;
-                        height:22px;
-                        display:flex;
-                        align-items:center;
-                        justify-content:center;
-                        color:white;
-                        font-size:12px;">
+                    <div style="width:{progreso*100:.2f}%;
+                                background:#2196F3;
+                                height:22px;
+                                display:flex;
+                                align-items:center;
+                                justify-content:center;
+                                color:white;
+                                font-size:12px;">
                         {cuotas_pagadas}/{plazo_meses} cuotas ({progreso*100:.1f}%)
                     </div>
                 </div>
@@ -264,8 +265,8 @@ with tabs[1]:
             col4.write(f"✅ **Cuotas pagadas**: {cuotas_pagadas}")
 
             col5, col6 = st.columns(2)
-            col5.write(f"💳 **Cuota mensual (estimada)**: ${cuota:,.2f}")
-            col6.write(f"📉 **Saldo restante**: ${saldo_restante:,.2f}")
+            col5.write(f"💳 **Cuota mensual (real)**: ${cuota_mensual:,.2f}")
+            col6.write(f"📉 **Saldo restante (estimado)**: ${saldo_restante:,.2f}")
 
             st.divider()
     else:
