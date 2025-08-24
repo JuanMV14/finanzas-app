@@ -22,7 +22,6 @@ def login(supabase, email, password):
     except Exception as e:
         st.error(f"Error en login: {e}")
 
-
 def signup(supabase, email, password):
     try:
         res = supabase.auth.sign_up({
@@ -35,7 +34,6 @@ def signup(supabase, email, password):
             st.error("No se pudo registrar el usuario ❌")
     except Exception as e:
         st.error(f"Error en registro: {e}")
-
 
 def logout(supabase):
     try:
