@@ -1,18 +1,12 @@
-# requirements.txt para la app de Finanzas Personales
+# requirements.txt
+python_version == "3.11.*"
 
-# --- Core ---
 streamlit>=1.32
 supabase
 python-dotenv
 pandas
 numpy
-
-# --- Exportar datos ---
-xlsxwriter     # para exportar a Excel
-
-# --- Visualización ---
-matplotlib     # gráficos principales
-altair         # fallback si matplotlib no está disponible
-
-# --- Opcionales / utilidades ---
-openpyxl       # soporte adicional para Excel
+xlsxwriter
+matplotlib
+altair
+openpyxl
