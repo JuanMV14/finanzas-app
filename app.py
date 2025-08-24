@@ -157,6 +157,7 @@ else:
         else:
             st.info("No hay transacciones registradas.")
 
+
 # ==============================
 # TAB 2: CRÉDITOS
 # ==============================
@@ -184,7 +185,7 @@ with tabs[1]:
                         "nombre": nombre,
                         "monto": monto,
                         "plazo_meses": plazo_meses,
-                        "tasa_interes": tasa_anual,  # guardamos en el campo real
+                        "tasa_interes": tasa_anual,
                         "cuota_mensual": cuota_mensual,
                         "cuotas_pagadas": 0
                     }
@@ -199,23 +200,6 @@ with tabs[1]:
     # ---------- Listado de créditos ----------
     creditos = obtener_creditos(st.session_state["user"]["id"])
 
-    def calcular_saldo_insoluto(cuota, tasa_anual, plazo_total, cuotas_pagadas):
-        """
-        Calcula saldo insoluto con sistema francés usando la cuota real
-        """
-        # Convertir EA a tasa efectiva mensual
-        tasa_mensual = (1 + tasa_anual / 100) ** (1 / 12) - 1 if tasa_anual > 0 else 0.0
-        n_restantes = plazo_total - cuotas_pagadas
-
-        if n_restantes <= 0:
-            return 0.0
-
-        if tasa_mensual == 0:
-            return max(0.0, cuota * n_restantes)
-
-        saldo = cuota * (1 - (1 + tasa_mensual) ** (-n_restantes)) / tasa_mensual
-        return round(saldo, 2)
-
     if creditos:
         for credito in creditos:
             nombre = str(credito.get("nombre", "Sin nombre"))
@@ -226,15 +210,6 @@ with tabs[1]:
             cuotas_pagadas = int(credito.get("cuotas_pagadas", 0) or 0)
 
             cuotas_pagadas = max(0, min(cuotas_pagadas, plazo_meses))
-
-            # ✅ Calcular saldo real con cuota y tasa
-            saldo_restante = calcular_saldo_insoluto(
-                cuota=cuota_mensual,
-                tasa_anual=tasa_anual,
-                plazo_total=plazo_meses,
-                cuotas_pagadas=cuotas_pagadas
-            )
-
             progreso = (cuotas_pagadas / plazo_meses) if plazo_meses > 0 else 0.0
 
             st.subheader(f"🏦 {nombre}")
@@ -243,7 +218,7 @@ with tabs[1]:
             st.markdown(
                 f"""
                 <div style="background:#eee;border-radius:10px;overflow:hidden;height:22px;margin:6px 0 12px 0;">
-                    <div style="width:{progreso*100:.2f}%;
+                    <div style="width:{progreso*100:.2f}% ;
                                 background:#2196F3;
                                 height:22px;
                                 display:flex;
@@ -266,28 +241,58 @@ with tabs[1]:
 
             col5, col6 = st.columns(2)
             col5.write(f"💳 **Cuota mensual (real)**: ${cuota_mensual:,.2f}")
-            col6.write(f"📉 **Saldo restante (estimado)**: ${saldo_restante:,.2f}")
+
+            # 🔹 Botón para registrar pago (reemplaza saldo restante)
+            if col6.button("Registrar pago", key=f"pago_{credito['id']}"):
+                # 1. Insertar transacción
+                resp = insertar_transaccion(
+                    st.session_state["user"]["id"],
+                    "Gasto",
+                    nombre,  # categoría = nombre del crédito
+                    cuota_mensual,
+                    date.today()
+                )
+
+                # 2. Actualizar crédito (+1 cuota pagada)
+                update_credito(credito["id"], {"cuotas_pagadas": cuotas_pagadas + 1})
+
+                st.success(f"Pago registrado en {nombre} ✅")
+                st.rerun()
 
             st.divider()
     else:
         st.info("No tienes créditos registrados.")
 
-    # ==============================
-    # TAB 3: HISTORIAL COMPLETO
-    # ==============================
-    with tabs[2]:
-        st.header("📜 Historial completo de transacciones")
 
-        trans_all = obtener_transacciones(st.session_state["user"]["id"])
-        if trans_all:
-            for t in trans_all:
-                col1, col2, col3, col4, col5 = st.columns(5)
-                col1.write(t["tipo"])
-                col2.write(t["categoria"])
-                col3.write(t["monto"])
-                col4.write(t["fecha"])
-                if col5.button("🗑️", key=f"hist_{t['id']}"):
-                    borrar_transaccion(st.session_state["user"]["id"], t["id"])
-                    st.rerun()
-        else:
-            st.info("No hay transacciones registradas.")
+# ==============================
+# TAB 3: HISTORIAL COMPLETO
+# ==============================
+with tabs[2]:
+    st.header("📜 Historial completo de transacciones")
+
+    trans_all = obtener_transacciones(st.session_state["user"]["id"])
+    if trans_all:
+        for t in trans_all:
+            col1, col2, col3, col4, col5 = st.columns(5)
+            col1.write(t["tipo"])
+            col2.write(t["categoria"])
+            col3.write(f"${float(t['monto']):,.2f}")
+            col4.write(t["fecha"])
+
+            if col5.button("🗑️", key=f"hist_{t['id']}"):
+                # Borrar transacción
+                borrar_transaccion(st.session_state["user"]["id"], t["id"])
+
+                # Si era un pago de crédito → restar cuota pagada
+                creditos = obtener_creditos(st.session_state["user"]["id"])
+                for credito in creditos:
+                    if credito["nombre"] == t["categoria"]:
+                        cuotas_actuales = int(credito["cuotas_pagadas"])
+                        if cuotas_actuales > 0:
+                            update_credito(credito["id"], {"cuotas_pagadas": cuotas_actuales - 1})
+                        break
+
+                st.rerun()
+    else:
+        st.info("No hay transacciones registradas.")
+
