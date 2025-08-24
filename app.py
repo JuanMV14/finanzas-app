@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 import os
 from supabase import create_client, Client
 import supabase
-from queries import obtener_creditos
+from queries import obtener_transacciones_con_creditos
 
 
 # 🔐 Cargar variables de entorno
