@@ -44,8 +44,17 @@ else:
     if st.sidebar.button("Cerrar Sesión"):
         logout(supabase)
 
-    # Contenido principal
-    tabs = st.tabs(["Transacciones", "Créditos", "Historial"])
+    # Función para borrar transacción y ajustar crédito si aplica
+    def borrar_transaccion_y_ajustar_credito(user_id, transaccion):
+        borrar_transaccion(user_id, transaccion["id"])
+        if transaccion["tipo"] == "Crédito":
+            creditos = obtener_creditos(user_id)
+            for credito in creditos:
+                if credito["nombre"] == transaccion["categoria"]:
+                    cuotas_actuales = int(credito["cuotas_pagadas"])
+                    if cuotas_actuales > 0:
+                        update_credito(credito["id"], {"cuotas_pagadas": cuotas_actuales - 1})
+                    break
 
     # ==============================
     # TAB 1: TRANSACCIONES
