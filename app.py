@@ -176,14 +176,29 @@ with tabs[1]:
             )
             cuotas_pagadas = int(credito["cuotas_pagadas"])
 
-            # ✅ Conversión correcta de EA → tasa efectiva mensual
-            tasa_mensual = (1 + tasa_anual / 100) ** (1 / 12) - 1
+            # ✅ Conversión EA → tasa efectiva mensual
+            tasa_mensual = (1 + tasa_anual / 100) ** (1 / 12) - 1 if tasa_anual > 0 else 0
 
-            # ✅ Fórmula sistema francés (cuota fija)
-            cuota = monto * (tasa_mensual / (1 - (1 + tasa_mensual) ** (-plazo_meses)))
+            # ======================
+            # Validaciones especiales
+            # ======================
+            if plazo_meses <= 0:
+                cuota = 0
+                saldo_restante = monto
+            elif tasa_mensual == 0:
+                # Crédito sin intereses → cuota simple
+                cuota = monto / plazo_meses
+                saldo_restante = max(0, monto - (cuotas_pagadas * cuota))
+            else:
+                # Fórmula sistema francés (cuota fija)
+                cuota = monto * (tasa_mensual / (1 - (1 + tasa_mensual) ** (-plazo_meses)))
+                saldo_restante = monto * (
+                    (1 + tasa_mensual) ** plazo_meses - (1 + tasa_mensual) ** cuotas_pagadas
+                ) / ((1 + tasa_mensual) ** plazo_meses - 1)
 
-            saldo_restante = monto * ((1 + tasa_mensual) ** plazo_meses - (1 + tasa_mensual) ** cuotas_pagadas) / ((1 + tasa_mensual) ** plazo_meses - 1)
-
+            # ======================
+            # Mostrar información
+            # ======================
             st.write(f"💰 Monto del crédito: ${monto:,.0f}")
             st.write(f"📅 Plazo: {plazo_meses} meses")
             st.write(f"📈 Tasa anual: {tasa_anual:.2f}%")
@@ -192,6 +207,7 @@ with tabs[1]:
             st.write(f"✅ Cuotas pagadas: {cuotas_pagadas}")
     else:
         st.info("No tienes créditos registrados.")
+
 
 
     # ==============================
