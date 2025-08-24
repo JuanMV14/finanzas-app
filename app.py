@@ -1,5 +1,5 @@
 # =====================================
-# app.py - Finanzas Personales (versión corregida con forms completos)
+# app.py - Finanzas Personales (versión corregida sin key en form_submit_button)
 # =====================================
 
 import streamlit as st
@@ -82,7 +82,7 @@ def dibujar_sidebar():
                 with st.form("login_form", clear_on_submit=True):
                     email = st.text_input("Correo electrónico", key="login_email")
                     password = st.text_input("Contraseña", type="password", key="login_pass")
-                    submitted = st.form_submit_button("Ingresar", use_container_width=True, key="btn_login")
+                    submitted = st.form_submit_button("Ingresar")
                     if submitted:
                         login(supabase, email, password)
 
@@ -91,7 +91,7 @@ def dibujar_sidebar():
                 with st.form("signup_form", clear_on_submit=True):
                     email_reg = st.text_input("Correo electrónico (registro)", key="reg_email")
                     password_reg = st.text_input("Contraseña (registro)", type="password", key="reg_pass")
-                    submitted = st.form_submit_button("Registrarse", use_container_width=True, key="btn_signup")
+                    submitted = st.form_submit_button("Registrarse")
                     if submitted:
                         signup(supabase, email_reg, password_reg)
 
@@ -191,7 +191,7 @@ with tabs[1]:
         categoria = st.text_input("Categoría", key="categoria_trans")
         monto = st.number_input("Monto", min_value=0.01, step=1000.0, format="%.2f", key="monto_trans")
         fecha = st.date_input("Fecha", value=date.today(), key="fecha_trans")
-        submitted = st.form_submit_button("Guardar", key="btn_guardar_trans")
+        submitted = st.form_submit_button("Guardar")
 
         if submitted:
             try:
@@ -221,7 +221,7 @@ with tabs[2]:
         tasa = st.number_input("Tasa anual (%)", min_value=0.0, step=0.1, key="tasa_credito")
         cuota = st.number_input("Cuota mensual", min_value=0.0, step=1000.0, key="cuota_credito")
         dia_pago = st.number_input("Día de pago (1-28)", min_value=1, max_value=28, step=1, value=14, key="dia_pago_credito")
-        submitted = st.form_submit_button("Guardar crédito", key="btn_guardar_credito")
+        submitted = st.form_submit_button("Guardar crédito")
 
         if submitted:
             try:
@@ -260,7 +260,7 @@ with tabs[4]:
         nombre_meta = st.text_input("Nombre de la meta", key="nombre_meta")
         monto_objetivo = st.number_input("Monto objetivo", min_value=0.0, step=10000.0, key="monto_meta")
         ahorrado_inicial = st.number_input("Ahorrado inicial", min_value=0.0, step=10000.0, value=0.0, key="ahorrado_meta")
-        submitted_meta = st.form_submit_button("Guardar meta", key="btn_guardar_meta")
+        submitted_meta = st.form_submit_button("Guardar meta")
 
         if submitted_meta:
             if nombre_meta and monto_objetivo > 0:
