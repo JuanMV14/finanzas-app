@@ -1,171 +1,246 @@
-# ===============================
-# app.py - Finanzas Personales
-# ===============================
+# =====================================
+# app.py - Finanzas Personales (versión funcional)
+# =====================================
 
 import streamlit as st
-import pandas as pd
-import uuid
-from datetime import datetime
+from supabase import create_client
 from dotenv import load_dotenv
 import os
-from supabase import create_client, Client
-import supabase
-from queries import obtener_transacciones_con_creditos
+from datetime import date, datetime
+import pandas as pd
+import numpy as np
+import base64
+import io
+import traceback
+import altair as alt
 
+# --- Import de queries y utils ---
+from queries import (
+    registrar_pago, update_credito, insertar_transaccion, insertar_credito,
+    borrar_transaccion, obtener_transacciones, obtener_creditos,
+    insertar_meta, obtener_metas, update_meta, borrar_meta
+)
+from utils import login, signup, logout
 
-# 🔐 Cargar variables de entorno
+# ============================
+# Inicialización de session_state
+# ============================
+required_session_keys = ["user"]
+for k in required_session_keys:
+    if k not in st.session_state:
+        st.session_state[k] = None
+
+# ============================
+# Cliente Supabase
+# ============================
 load_dotenv()
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
-# 🧠 Inicializar cliente Supabase
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+supabase = None
+try:
+    if SUPABASE_URL and SUPABASE_KEY:
+        supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+except Exception:
+    supabase = None
 
-# ⚙️ Configuración de página
+# ============================
+# Utilidades
+# ============================
+def to_float(x, default=0.0):
+    try:
+        return float(x)
+    except Exception:
+        return default
+
+def to_int(x, default=0):
+    try:
+        return int(x)
+    except Exception:
+        return default
+
+def descargar_bytes(nombre_archivo: str, data_bytes: bytes, label="Descargar"):
+    b64 = base64.b64encode(data_bytes).decode()
+    href = f'<a href="data:application/octet-stream;base64,{b64}" download="{nombre_archivo}">{label}</a>'
+    st.markdown(href, unsafe_allow_html=True)
+
+def generar_ics_evento(summary, dt_start: date, dt_end: date, description="", location=""):
+    uid = f"{summary}-{dt_start.isoformat()}"
+    ics = f"""BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Tu App Finanzas//ES
+BEGIN:VEVENT
+UID:{uid}
+DTSTAMP:{datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")}
+DTSTART;VALUE=DATE:{dt_start.strftime("%Y%m%d")}
+DTEND;VALUE=DATE:{dt_end.strftime("%Y%m%d")}
+SUMMARY:{summary}
+DESCRIPTION:{description}
+LOCATION:{location}
+END:VEVENT
+END:VCALENDAR
+"""
+    return ics.encode("utf-8")
+
+# ============================
+# Configuración de página
+# ============================
 st.set_page_config(page_title="Finanzas Personales", layout="wide")
 
-# ===============================
-# 🔐 Autenticación
-# ===============================
+# ========== Sidebar (única instancia, sin duplicados) ==========
+with st.sidebar:
+    st.title("Menú")
 
-def autenticar_usuario(email, password):
-    try:
-        res = supabase.auth.sign_in_with_password({"email": email, "password": password})
-        return res.user
-    except Exception:
-        return None
-
-# ===============================
-# 📦 Funciones de base de datos
-# ===============================
-
-def obtener_transacciones(user_id: str) -> list:
-    """
-    Recupera todas las transacciones asociadas a un usuario específico.
-
-    Args:
-        user_id (str): ID del usuario.
-
-    Returns:
-        list: Lista de transacciones o lista vacía si no hay resultados o ocurre un error.
-    """
-    if not user_id or not isinstance(user_id, str):
-        print("❌ user_id inválido")
-        return []
-
-    try:
-        res = supabase.table("transacciones").select("*").eq("user_id", user_id).execute()
-        if res.data is None:
-            print("⚠️ No se encontraron transacciones")
-            return []
-        return res.data
-    except Exception as e:
-        print(f"🚨 Error al obtener transacciones: {e}")
-        return []
-
-def obtener_metas(user_id):
-    try:
-        res = supabase.table("metas").select("*").eq("user_id", user_id).execute()
-        return res.data or []
-    except Exception:
-        return []
-
-def crear_meta(user_id, nombre, monto):
-    try:
-        nueva_meta = {
-            "id": str(uuid.uuid4()),
-            "user_id": user_id,
-            "nombre": nombre,
-            "monto": monto,
-            "ahorrado": 0,
-            "creada_en": datetime.utcnow().isoformat()
-        }
-        supabase.table("metas").insert(nueva_meta).execute()
-        return True
-    except Exception:
-        return False
-
-def actualizar_ahorro(meta_id, nuevo_valor):
-    try:
-        supabase.table("metas").update({"ahorrado": nuevo_valor}).eq("id", meta_id).execute()
-        return True
-    except Exception:
-        return False
-
-# ===============================
-# 🧭 Sidebar de sesión
-# ===============================
-
-if "user" not in st.session_state:
-    st.session_state["user"] = None
-
-if st.session_state["user"] is None:
-    st.sidebar.title("🔐 Iniciar sesión")
-    email = st.sidebar.text_input("Correo electrónico")
-    password = st.sidebar.text_input("Contraseña", type="password")
-    if st.sidebar.button("Acceder"):
-        user = autenticar_usuario(email, password)
-        if user:
-            st.session_state["user"] = user
-            st.experimental_rerun()
+    if st.session_state["user"] is None:
+        menu_auth = st.radio("Selecciona una opción:", ["Login", "Registro"], index=0)
+        if menu_auth == "Login":
+            st.subheader("Iniciar Sesión")
+            email = st.text_input("Correo electrónico")
+            password = st.text_input("Contraseña", type="password")
+            if st.button("Ingresar", use_container_width=True):
+                try:
+                    login(supabase, email, password)
+                except Exception as e:
+                    st.error("Error en login.")
+                    st.exception(e)
         else:
-            st.sidebar.error("Credenciales inválidas")
-else:
-    st.sidebar.success(f"Sesión iniciada: {st.session_state['user']['email']}")
-    if st.sidebar.button("Cerrar sesión"):
-        st.session_state["user"] = None
-        st.experimental_rerun()
+            st.subheader("Crear Cuenta")
+            email_reg = st.text_input("Correo electrónico (registro)")
+            password_reg = st.text_input("Contraseña (registro)", type="password")
+            if st.button("Registrarse", use_container_width=True):
+                try:
+                    signup(supabase, email_reg, password_reg)
+                except Exception as e:
+                    st.error("Error en registro.")
+                    st.exception(e)
+    else:
+        st.write(f"👤 {st.session_state['user'].get('email', 'Usuario')}")
+        if st.button("Cerrar Sesión", use_container_width=True):
+            try:
+                logout(supabase)
+            except Exception as e:
+                st.error("Error al cerrar sesión.")
+                st.exception(e)
 
-# ===============================
-# 🧩 Validación de sesión
-# ===============================
-
+# Si no hay usuario logueado, parar aquí
 if st.session_state["user"] is None:
     st.stop()
 
-user_id = st.session_state["user"]["id"]
+# ============================
+# Helpers para consultas seguras
+# ============================
+def safe_obtener_transacciones(user_id):
+    try:
+        res = obtener_transacciones(user_id)
+        return res if isinstance(res, list) else []
+    except Exception:
+        traceback.print_exc()
+        return []
 
-# ===============================
-# 🏠 Interfaz principal
-# ===============================
+def safe_obtener_creditos(user_id):
+    try:
+        res = obtener_creditos(user_id)
+        return res if isinstance(res, list) else []
+    except Exception:
+        traceback.print_exc()
+        return []
 
-st.title("💰 Panel Financiero Personal")
+def safe_obtener_metas(user_id):
+    try:
+        res = obtener_metas(user_id)
+        return res if isinstance(res, list) else []
+    except Exception:
+        traceback.print_exc()
+        return []
 
-tab0, tab1, tab2, tab3, tab4= st.tabs(["📊 Dashboard", "💸 Transacciones", "💳 Créditos" , "🎯 Metas de Ahorro", "⚙️ Configuración"])
+# ============================
+# Tabs principales
+# ============================
+tabs = st.tabs(["Dashboard", "Transacciones", "Créditos", "Historial", "Metas", "Configuración"])
 
-# ===============================
-# 📊 Tab: Dashboard
-# ===============================
+# ============================
+# 1) Dashboard
+# ============================
+with tabs[0]:
+    st.header("📈 Dashboard")
 
-with tab1:
-    st.header("Resumen de Transacciones")
-    transacciones = obtener_transacciones(user_id)
+    trans = safe_obtener_transacciones(st.session_state["user"]["id"]) or []
+    if trans:
+        df = pd.DataFrame(trans)
+        # Limpieza de tipos
+        if "monto" in df.columns:
+            df["monto"] = df["monto"].apply(lambda x: to_float(x, 0.0))
+        if "fecha" in df.columns:
+            try:
+                df["fecha"] = pd.to_datetime(df["fecha"]).dt.date
+            except Exception:
+                pass
 
-    if not transacciones:
-        st.info("No hay transacciones registradas.")
+        total_ingresos = df[df["tipo"] == "Ingreso"]["monto"].sum()
+        total_gastos = df[df["tipo"] == "Gasto"]["monto"].sum()
+        total_creditos = df[df["tipo"] == "Crédito"]["monto"].sum()
+        saldo_total = total_ingresos - (total_gastos + total_creditos)
+
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("Ingresos", f"${total_ingresos:,.2f}")
+        c2.metric("Gastos", f"${total_gastos:,.2f}")
+        c3.metric("Créditos", f"${total_creditos:,.2f}")
+        c4.metric("Saldo", f"${saldo_total:,.2f}")
+
+        st.subheader("Transacciones por fecha")
+        df_chart = df.copy()
+        # Forzar strings limpias en tipo
+        df_chart["tipo"] = df_chart["tipo"].astype(str)
+        chart = alt.Chart(pd.DataFrame(df_chart)).mark_bar().encode(
+            x=alt.X("fecha:T", title="Fecha"),
+            y=alt.Y("sum(monto):Q", title="Monto"),
+            color=alt.Color("tipo:N", title="Tipo"),
+            tooltip=["tipo:N", "categoria:N", "monto:Q", "fecha:T"]
+        )
+        st.altair_chart(chart, use_container_width=True)
+
+        st.subheader("Transacciones recientes")
+        st.dataframe(df.sort_values("fecha", ascending=False).head(10), use_container_width=True)
+
+        # Exportación CSV
+        csv = df.to_csv(index=False).encode("utf-8")
+        st.download_button("⬇️ Descargar CSV", csv, "transacciones.csv", "text/csv")
     else:
-        df = pd.DataFrame(transacciones)
-        df["fecha"] = pd.to_datetime(df["fecha"])
-        df = df.sort_values("fecha", ascending=False)
+        st.info("Aún no hay transacciones. Registra la primera desde la pestaña **Transacciones**.")
 
+# ============================
+# 2) Transacciones
+# ============================
+with tabs[1]:
+    st.header("📊 Transacciones")
+
+    tipo = st.selectbox("Tipo", ["Ingreso", "Gasto", "Crédito"])
+    categoria = st.text_input("Categoría")
+    with st.form("nueva_transaccion"):
+        monto = st.number_input("Monto", min_value=0.01, step=1000.0, format="%.2f")
+        fecha = st.date_input("Fecha", value=date.today())
+        submitted = st.form_submit_button("Guardar")
+        if submitted:
+            try:
+                insertar_transaccion(st.session_state["user"]["id"], tipo, categoria, float(monto), fecha)
+                st.success("Transacción guardada ✅")
+                st.rerun()
+            except Exception as e:
+                st.error("Error al guardar la transacción")
+                st.exception(e)
+
+    trans = safe_obtener_transacciones(st.session_state["user"]["id"]) or []
+    if trans:
+        st.subheader("Todas las transacciones")
+        df = pd.DataFrame(trans).sort_values("fecha", ascending=False)
         st.dataframe(df, use_container_width=True)
 
-        ingresos = df[df["tipo"] == "ingreso"]["monto"].sum()
-        gastos = df[df["tipo"] == "gasto"]["monto"].sum()
-        creditos = df[df["tipo"] == "credito"]["monto"].sum()
-
-        col1, col2, col3 = st.columns(3)
-        col1.metric("Ingresos", f"${ingresos:,.2f}")
-        col2.metric("Gastos", f"${gastos:,.2f}")
-        col3.metric("Créditos", f"${creditos:,.2f}")
-
 # ============================
-# 3. Créditos
+# 3) Créditos
 # ============================
-with tab2:
+with tabs[2]:
     st.header("💳 Créditos")
 
-    # Formulario para nuevo crédito
     with st.form("nuevo_credito"):
         nombre = st.text_input("Nombre del crédito")
         monto = st.number_input("Monto total", min_value=0.0, step=1000.0)
@@ -178,196 +253,98 @@ with tab2:
             try:
                 insertar_credito(st.session_state["user"]["id"], nombre, monto, plazo, tasa, cuota, dia_pago)
                 st.success("Crédito guardado ✅")
-                st.experimental_rerun()
+                st.rerun()
             except Exception as e:
                 st.error("Error al guardar crédito")
                 st.exception(e)
 
-    # Mostrar créditos existentes
-    creditos = obtener_creditos(st.session_state["user"]["id"]) or []
-    transacciones = obtener_transacciones_con_creditos(st.session_state["user"]["id"]) or []
-
+    creditos = safe_obtener_creditos(st.session_state["user"]["id"]) or []
     if creditos:
         for c in creditos:
-            st.subheader(f"🏦 {c.get('nombre')} — ${c.get('monto'):,.2f}")
+            cuotas_pagadas = to_int(c.get("cuotas_pagadas", 0))
+            texto = f"🏦 {c.get('nombre')} — Monto ${to_float(c.get('monto',0)):,.2f} | Plazo {to_int(c.get('plazo',0))} meses | Cuota ${to_float(c.get('cuota',0)):,.2f} | Pagadas {cuotas_pagadas}"
+            st.write(texto)
 
-            # Filtrar pagos asociados a este crédito
-            pagos = [
-                tx for tx in transacciones
-                if tx.get("credito_id") == c["id"] and tx.get("tipo") == "pago_credito"
-            ]
-
-            cuotas_pagadas = len(pagos)
-            plazo = c.get("plazo", 1)
-            cuota = c.get("cuota", 0)
-            saldo_restante = max(0, c["monto"] - cuota * cuotas_pagadas)
-            progreso = min(1.0, cuotas_pagadas / plazo)
-
-            st.write(f"🗓️ Cuotas pagadas: {cuotas_pagadas} / {plazo}")
-            st.write(f"💰 Saldo restante: ${saldo_restante:,.2f}")
-            st.progress(progreso)
-
-            if pagos:
-                with st.expander("📄 Ver pagos"):
-                    for p in pagos:
-                        fecha = p.get("fecha", "Sin fecha")
-                        monto = p.get("monto", 0)
-                        st.write(f"- {fecha}: ${monto:,.2f}")
-
-
-# ===============================
-# 🎯 Tab: Metas de Ahorro
-# ===============================
-
-with tab3:
-    st.header("Tus Metas de Ahorro")
-
-    metas = obtener_metas(user_id)
-
-    if not metas:
-        st.info("No tienes metas registradas.")
+# ============================
+# 4) Historial
+# ============================
+with tabs[3]:
+    st.header("📜 Historial")
+    trans = safe_obtener_transacciones(st.session_state["user"]["id"]) or []
+    if trans:
+        df = pd.DataFrame(trans).sort_values("fecha", ascending=False)
+        st.dataframe(df, use_container_width=True)
     else:
-        for meta in metas:
-            nombre = meta["nombre"]
-            monto = meta["monto"]
-            ahorrado = meta["ahorrado"]
-            progreso = min(ahorrado / monto, 1.0)
+        st.info("Sin historial por ahora.")
 
-            st.subheader(f"💼 {nombre}")
-            st.write(f"Monto objetivo: **${monto:,.2f}**")
-            st.write(f"Ahorrado: **${ahorrado:,.2f}**")
-
-            st.progress(progreso)
-
-            nuevo_ahorro = st.number_input(
-                f"Actualizar ahorro para '{nombre}'",
-                min_value=0.0,
-                value=ahorrado,
-                step=100.0,
-                key=f"ahorro_{meta['id']}"
-            )
-
-            if st.button(f"Guardar nuevo ahorro para '{nombre}'", key=f"guardar_{meta['id']}"):
-                if nuevo_ahorro > monto:
-                    st.warning("El ahorro no puede superar el monto objetivo.")
-                else:
-                    ok = actualizar_ahorro(meta["id"], nuevo_ahorro)
-                    if ok:
-                        st.success("Ahorro actualizado correctamente.")
-                        st.experimental_rerun()
-                    else:
-                        st.error("No se pudo actualizar el ahorro.")
-
-    st.divider()
-    st.subheader("➕ Crear nueva meta")
+# ============================
+# 5) Metas
+# ============================
+with tabs[4]:
+    st.header("🎯 Metas de ahorro")
 
     with st.form("form_meta"):
         nombre_meta = st.text_input("Nombre de la meta")
-        monto_meta = st.number_input("Monto objetivo", min_value=0.0, step=100.0)
-        submitted = st.form_submit_button("Crear meta")
-
-        if submitted:
-            if not nombre_meta or monto_meta <= 0:
-                st.warning("Completa todos los campos correctamente.")
+        monto_objetivo = st.number_input("Monto objetivo", min_value=0.0, step=10000.0)
+        ahorrado_inicial = st.number_input("Ahorrado inicial", min_value=0.0, step=10000.0, value=0.0)
+        submitted_meta = st.form_submit_button("Guardar meta")
+        if submitted_meta:
+            if nombre_meta and monto_objetivo > 0:
+                try:
+                    insertar_meta(st.session_state["user"]["id"], nombre_meta, float(monto_objetivo), float(ahorrado_inicial))
+                    st.success("Meta guardada ✅")
+                    st.rerun()
+                except Exception as e:
+                    st.error("Error al guardar meta")
+                    st.exception(e)
             else:
-                ok = crear_meta(user_id, nombre_meta, monto_meta)
-                if ok:
-                    st.success("Meta creada exitosamente.")
-                    st.experimental_rerun()
-                else:
-                    st.error("No se pudo crear la meta.")
+                st.warning("Completa nombre y monto objetivo mayor a 0.")
 
-# ===============================
-# ⚙️ Tab: Configuración
-# ===============================
+    metas = safe_obtener_metas(st.session_state["user"]["id"]) or []
+    if metas:
+        for m in metas:
+            nombre = m.get("nombre", "Meta")
+            objetivo = to_float(m.get("monto", 0))
+            ahorrado = to_float(m.get("ahorrado", 0))
+            progreso = 0 if objetivo <= 0 else min(int((ahorrado / objetivo) * 100), 100)
 
-with tab4:
-    st.header("Configuración y Herramientas")
+            st.markdown(f"**{nombre}** — Objetivo: ${objetivo:,.2f} | Ahorrado: ${ahorrado:,.2f} | Progreso: {progreso}%")
+            st.progress(progreso)
 
-    st.markdown("Aquí podrás personalizar tu experiencia, exportar datos o activar funciones avanzadas.")
-
-    st.subheader("🔔 Alertas inteligentes")
-    activar_alertas = st.checkbox("Activar alertas por exceso de gasto")
-    if activar_alertas:
-        st.info("Esta función está en desarrollo. Pronto podrás recibir notificaciones automáticas.")
-
-    st.subheader("📤 Exportar transacciones")
-    if st.button("Descargar CSV"):
-        df_export = pd.DataFrame(transacciones)
-        st.download_button(
-            label="Descargar archivo",
-            data=df_export.to_csv(index=False).encode("utf-8"),
-            file_name="transacciones.csv",
-            mime="text/csv"
-        )
-
-    st.subheader("🎨 Personalización visual")
-    tema = st.selectbox("Selecciona un tema", ["Claro", "Oscuro", "Sistema"])
-    st.info(f"Has seleccionado el tema: {tema}. Esta opción será aplicada en futuras versiones.")
-
-    st.subheader("🧠 Asistente financiero")
-    st.markdown("¿Quieres que el sistema te sugiera cómo ahorrar más?")
-    if st.button("Activar recomendaciones"):
-        st.success("Función activada. Pronto recibirás sugerencias personalizadas.")
-
-# ===============================
-# 🧪 Funciones adicionales (extensibles)
-# ===============================
-
-def clasificar_transacciones(df):
-    # Clasificación básica por palabra clave
-    categorias = {
-        "comida": ["restaurante", "supermercado", "mercado"],
-        "transporte": ["uber", "taxi", "bus", "gasolina"],
-        "servicios": ["luz", "agua", "internet", "teléfono"],
-        "entretenimiento": ["cine", "spotify", "netflix"],
-        "otros": []
-    }
-
-    def asignar_categoria(descripcion):
-        descripcion = descripcion.lower()
-        for categoria, palabras in categorias.items():
-            if any(palabra in descripcion for palabra in palabras):
-                return categoria
-        return "otros"
-
-    df["categoria"] = df["descripcion"].apply(asignar_categoria)
-    return df
-
-def simulador_credito(monto, tasa_anual, cuotas):
-    tasa_mensual = tasa_anual / 12 / 100
-    if tasa_mensual == 0:
-        cuota = monto / cuotas
+            # Actualizar ahorro rápido
+            with st.expander(f"Actualizar {nombre}"):
+                nuevo_ahorro = st.number_input(f"Nuevo valor ahorrado para '{nombre}'", min_value=0.0, step=10000.0, value=ahorrado, key=f"ah_{m.get('id')}")
+                colu1, colu2 = st.columns(2)
+                if colu1.button("💾 Guardar actualización", key=f"upd_{m.get('id')}"):
+                    try:
+                        update_meta(m.get("id"), {"ahorrado": float(nuevo_ahorro)})
+                        st.success("Meta actualizada ✅")
+                        st.rerun()
+                    except Exception as e:
+                        st.error("No se pudo actualizar la meta")
+                        st.exception(e)
+                if colu2.button("🗑️ Borrar meta", key=f"del_{m.get('id')}"):
+                    try:
+                        borrar_meta(m.get("id"))
+                        st.success("Meta eliminada ✅")
+                        st.rerun()
+                    except Exception as e:
+                        st.error("No se pudo borrar la meta")
+                        st.exception(e)
     else:
-        cuota = monto * (tasa_mensual * (1 + tasa_mensual) ** cuotas) / ((1 + tasa_mensual) ** cuotas - 1)
-    return round(cuota, 2)
+        st.info("Aún no tienes metas. Crea la primera arriba.")
 
-# ===============================
-# 🧮 Simulador de crédito (opcional)
-# ===============================
-
-with tab4:
-    st.subheader("🧮 Simulador de Crédito")
-
-    monto_credito = st.number_input("Monto del crédito", min_value=0.0, step=100.0)
-    tasa_interes = st.number_input("Tasa de interés anual (%)", min_value=0.0, step=0.1)
-    cuotas = st.number_input("Número de cuotas mensuales", min_value=1, step=1)
-
-    if st.button("Calcular cuota mensual"):
-        cuota = simulador_credito(monto_credito, tasa_interes, cuotas)
-        st.success(f"Cuota mensual estimada: ${cuota:,.2f}")
-
-# ===============================
-# 🧼 Limpieza de sesión (debug)
-# ===============================
-
-def resetear_sesion():
-    for key in st.session_state.keys():
-        del st.session_state[key]
-
-# ===============================
-# 🧾 Footer
-# ===============================
-
-st.markdown("---")
-st.caption("App desarrollada por Juan • Datos seguros con Supabase • Streamlit v1.33+")
+# ============================
+# 6) Configuración
+# ============================
+with tabs[5]:
+    st.header("⚙️ Configuración")
+    st.write("Opciones sugeridas:")
+    st.markdown("""
+- **Asistente financiero (IA):** recomendaciones de ahorro/gasto según tus hábitos.
+- **Alertas y recordatorios:** límites de gasto por categoría y recordatorio de pago de créditos.
+- **Personalización:** moneda, formato numérico, tema visual.
+- **Exportación/Importación:** CSV/Excel.
+- **Predicción simple de flujo de caja:** media móvil o regresión lineal de gastos/ingresos.
+""")
+    st.info("Estas funciones se pueden activar gradualmente. Si quieres, en el siguiente paso te agrego un pequeño asistente de reglas y alertas.")
