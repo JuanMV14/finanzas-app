@@ -163,7 +163,7 @@ else:
 with tabs[1]:
     st.header("💳 Créditos")
 
-    creditos = obtener_creditos(supabase, st.session_state["user"]["id"])
+    creditos = obtener_creditos(st.session_state["user"]["id"])
 
     if creditos:
         for credito in creditos:
