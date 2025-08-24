@@ -1,5 +1,5 @@
 # =====================================
-# app.py - Finanzas Personales (versión corregida con keys únicas)
+# app.py - Finanzas Personales (versión corregida con forms completos)
 # =====================================
 
 import streamlit as st
@@ -79,17 +79,21 @@ def dibujar_sidebar():
 
             if menu_auth == "Login":
                 st.subheader("Iniciar Sesión")
-                email = st.text_input("Correo electrónico", key="login_email")
-                password = st.text_input("Contraseña", type="password", key="login_pass")
-                if st.button("Ingresar", use_container_width=True, key="btn_login"):
-                    login(supabase, email, password)
+                with st.form("login_form", clear_on_submit=True):
+                    email = st.text_input("Correo electrónico", key="login_email")
+                    password = st.text_input("Contraseña", type="password", key="login_pass")
+                    submitted = st.form_submit_button("Ingresar", use_container_width=True, key="btn_login")
+                    if submitted:
+                        login(supabase, email, password)
 
             else:
                 st.subheader("Crear Cuenta")
-                email_reg = st.text_input("Correo electrónico (registro)", key="reg_email")
-                password_reg = st.text_input("Contraseña (registro)", type="password", key="reg_pass")
-                if st.button("Registrarse", use_container_width=True, key="btn_signup"):
-                    signup(supabase, email_reg, password_reg)
+                with st.form("signup_form", clear_on_submit=True):
+                    email_reg = st.text_input("Correo electrónico (registro)", key="reg_email")
+                    password_reg = st.text_input("Contraseña (registro)", type="password", key="reg_pass")
+                    submitted = st.form_submit_button("Registrarse", use_container_width=True, key="btn_signup")
+                    if submitted:
+                        signup(supabase, email_reg, password_reg)
 
         else:
             st.write(f"👤 {st.session_state['user'].get('email', 'Usuario')}")
@@ -182,12 +186,13 @@ with tabs[0]:
 with tabs[1]:
     st.header("📊 Transacciones")
 
-    tipo = st.selectbox("Tipo", ["Ingreso", "Gasto", "Crédito"], key="tipo_trans")
-    categoria = st.text_input("Categoría", key="categoria_trans")
     with st.form("nueva_transaccion", clear_on_submit=True):
+        tipo = st.selectbox("Tipo", ["Ingreso", "Gasto", "Crédito"], key="tipo_trans")
+        categoria = st.text_input("Categoría", key="categoria_trans")
         monto = st.number_input("Monto", min_value=0.01, step=1000.0, format="%.2f", key="monto_trans")
         fecha = st.date_input("Fecha", value=date.today(), key="fecha_trans")
         submitted = st.form_submit_button("Guardar", key="btn_guardar_trans")
+
         if submitted:
             try:
                 insertar_transaccion(st.session_state["user"]["id"], tipo, categoria, float(monto), fecha)
@@ -217,6 +222,7 @@ with tabs[2]:
         cuota = st.number_input("Cuota mensual", min_value=0.0, step=1000.0, key="cuota_credito")
         dia_pago = st.number_input("Día de pago (1-28)", min_value=1, max_value=28, step=1, value=14, key="dia_pago_credito")
         submitted = st.form_submit_button("Guardar crédito", key="btn_guardar_credito")
+
         if submitted:
             try:
                 insertar_credito(st.session_state["user"]["id"], nombre, monto, plazo, tasa, cuota, dia_pago)
@@ -255,6 +261,7 @@ with tabs[4]:
         monto_objetivo = st.number_input("Monto objetivo", min_value=0.0, step=10000.0, key="monto_meta")
         ahorrado_inicial = st.number_input("Ahorrado inicial", min_value=0.0, step=10000.0, value=0.0, key="ahorrado_meta")
         submitted_meta = st.form_submit_button("Guardar meta", key="btn_guardar_meta")
+
         if submitted_meta:
             if nombre_meta and monto_objetivo > 0:
                 insertar_meta(st.session_state["user"]["id"], nombre_meta, float(monto_objetivo), float(ahorrado_inicial))
