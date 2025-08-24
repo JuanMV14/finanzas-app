@@ -163,52 +163,118 @@ else:
 with tabs[1]:
     st.header("💳 Créditos")
 
+    # ---------- Formulario para registrar nuevo crédito ----------
+    with st.expander("➕ Registrar nuevo crédito"):
+        with st.form("form_credito"):
+            nombre = st.text_input("Nombre del crédito (Banco/TC/etc.)", placeholder="Bancolombia / Visa / etc.")
+            monto = st.number_input("Monto del crédito", min_value=0.0, step=1000.0, format="%.2f")
+            plazo_meses = st.number_input("Plazo (meses)", min_value=1, step=1)
+            tasa_anual = st.number_input("Tasa efectiva anual (EA) %", min_value=0.0, step=0.01, format="%.2f")
+            submitted_credito = st.form_submit_button("Guardar crédito")
+
+            if submitted_credito:
+                try:
+                    # Caso 1: función que recibe argumentos sueltos
+                    resp = insertar_credito(st.session_state["user"]["id"], nombre, monto, plazo_meses, tasa_anual)
+                except TypeError:
+                    # Caso 2: función que recibe un dict (compatibilidad)
+                    payload = {
+                        "nombre": nombre,
+                        "monto": monto,
+                        "plazo_meses": plazo_meses,
+                        "tasa": tasa_anual,          # guardamos en el campo "tasa" (EA %)
+                        "cuotas_pagadas": 0
+                    }
+                    resp = insertar_credito(st.session_state["user"]["id"], payload)
+
+                if getattr(resp, "data", None) is not None or resp:
+                    st.success("Crédito guardado ✅")
+                    st.rerun()
+                else:
+                    st.error("No se pudo guardar el crédito")
+
+    # ---------- Listado de créditos ----------
     creditos = obtener_creditos(st.session_state["user"]["id"])
 
     if creditos:
         for credito in creditos:
-            st.subheader(f"🏦 {credito['nombre']}")
-
-            monto = float(credito["monto"])
-            plazo_meses = int(credito["plazo_meses"])
+            # Lectura robusta de campos
+            nombre = str(credito.get("nombre", "Sin nombre"))
+            monto = float(credito.get("monto", 0) or 0)
+            plazo_meses = int(credito.get("plazo_meses", 0) or 0)
             tasa_anual = float(
-                credito.get("tasa") or credito.get("Tasa de interés anual (%)") or 0
+                credito.get("tasa")
+                or credito.get("Tasa de interés anual (%)")
+                or credito.get("tasa_anual")
+                or 0
             )
-            cuotas_pagadas = int(credito["cuotas_pagadas"])
+            cuotas_pagadas = int(credito.get("cuotas_pagadas", 0) or 0)
 
-            # ✅ Conversión EA → tasa efectiva mensual
-            tasa_mensual = (1 + tasa_anual / 100) ** (1 / 12) - 1 if tasa_anual > 0 else 0
+            # Normalizaciones
+            cuotas_pagadas = max(0, min(cuotas_pagadas, plazo_meses))  # clamp 0..n
 
-            # ======================
-            # Validaciones especiales
-            # ======================
+            # Tasa efectiva mensual desde EA
+            tasa_mensual = (1 + tasa_anual / 100) ** (1 / 12) - 1 if tasa_anual > 0 else 0.0
+
+            # Cálculo de cuota y saldo
             if plazo_meses <= 0:
-                cuota = 0
+                cuota = 0.0
                 saldo_restante = monto
+                st.warning(f"⚠️ '{nombre}': Plazo 0 meses. Revisa la configuración.")
             elif tasa_mensual == 0:
-                # Crédito sin intereses → cuota simple
+                # Crédito sin intereses
                 cuota = monto / plazo_meses
-                saldo_restante = max(0, monto - (cuotas_pagadas * cuota))
+                saldo_restante = max(0.0, monto - cuotas_pagadas * cuota)
             else:
-                # Fórmula sistema francés (cuota fija)
+                # Sistema francés (cuota fija)
                 cuota = monto * (tasa_mensual / (1 - (1 + tasa_mensual) ** (-plazo_meses)))
+                k = cuotas_pagadas
                 saldo_restante = monto * (
-                    (1 + tasa_mensual) ** plazo_meses - (1 + tasa_mensual) ** cuotas_pagadas
-                ) / ((1 + tasa_mensual) ** plazo_meses - 1)
+                    ((1 + tasa_mensual) ** plazo_meses - (1 + tasa_mensual) ** k)
+                    / ((1 + tasa_mensual) ** plazo_meses - 1)
+                )
 
-            # ======================
-            # Mostrar información
-            # ======================
-            st.write(f"💰 Monto del crédito: ${monto:,.0f}")
-            st.write(f"📅 Plazo: {plazo_meses} meses")
-            st.write(f"📈 Tasa anual: {tasa_anual:.2f}%")
-            st.write(f"💳 Cuota mensual: ${cuota:,.2f}")
-            st.write(f"📉 Saldo restante: ${saldo_restante:,.2f}")
-            st.write(f"✅ Cuotas pagadas: {cuotas_pagadas}")
+            # Evitar residuos por flotantes
+            saldo_restante = max(0.0, float(saldo_restante))
+
+            # Progreso por cuotas
+            progreso = (cuotas_pagadas / plazo_meses) if plazo_meses > 0 else 0.0
+
+            st.subheader(f"🏦 {nombre}")
+
+            # Barra progresiva por crédito (por cuotas pagadas)
+            st.markdown(
+                f"""
+                <div style="background:#eee;border-radius:10px;overflow:hidden;height:22px;margin:6px 0 12px 0;">
+                    <div style="
+                        width:{progreso*100:.2f}%;
+                        background:#2196F3;
+                        height:22px;
+                        display:flex;
+                        align-items:center;
+                        justify-content:center;
+                        color:white;
+                        font-size:12px;">
+                        {cuotas_pagadas}/{plazo_meses} cuotas ({progreso*100:.1f}%)
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
+            col1, col2, col3, col4 = st.columns(4)
+            col1.write(f"💰 **Monto**: ${monto:,.2f}")
+            col2.write(f"📅 **Plazo**: {plazo_meses} meses")
+            col3.write(f"📈 **Tasa EA**: {tasa_anual:.2f}%")
+            col4.write(f"✅ **Cuotas pagadas**: {cuotas_pagadas}")
+
+            col5, col6 = st.columns(2)
+            col5.write(f"💳 **Cuota mensual (estimada)**: ${cuota:,.2f}")
+            col6.write(f"📉 **Saldo restante**: ${saldo_restante:,.2f}")
+
+            st.divider()
     else:
         st.info("No tienes créditos registrados.")
-
-
 
     # ==============================
     # TAB 3: HISTORIAL COMPLETO
