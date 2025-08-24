@@ -10,6 +10,8 @@ from dotenv import load_dotenv
 import os
 from supabase import create_client, Client
 import supabase
+from queries import obtener_creditos
+
 
 # 🔐 Cargar variables de entorno
 load_dotenv()
@@ -182,7 +184,7 @@ with tab2:
                 st.exception(e)
 
     # Mostrar créditos existentes
-    creditos = safe_obtener_creditos(st.session_state["user"]["id"]) or []
+    creditos = obtener_creditos(st.session_state["user"]["id"]) or []
     transacciones = obtener_transacciones_con_creditos(st.session_state["user"]["id"]) or []
 
     if creditos:
