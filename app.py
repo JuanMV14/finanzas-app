@@ -164,15 +164,15 @@ with tabs[1]:
     st.header("💳 Créditos")
 
     # Funciones auxiliares
-    def calcular_cuota_fija(monto, tasa_anual, plazo_meses):
-        i = tasa_anual / 100 / 12  # tasa mensual
+    def calcular_cuota_fija(monto, tasa_interes, plazo_meses):
+        i = tasa_interes / 100 / 12  # tasa mensual
         if i == 0:  # caso sin interés
             return monto / plazo_meses
         return monto * i / (1 - (1 + i) ** -plazo_meses)
 
-    def saldo_restante(monto, tasa_anual, plazo_meses, cuotas_pagadas):
-        i = tasa_anual / 100 / 12
-        cuota = calcular_cuota_fija(monto, tasa_anual, plazo_meses)
+    def saldo_restante(monto, tasa_interes, plazo_meses, cuotas_pagadas):
+        i = tasa_interes / 100 / 12
+        cuota = calcular_cuota_fija(monto, tasa_interes, plazo_meses)
         saldo = monto
         for _ in range(cuotas_pagadas):
             interes = saldo * i
@@ -214,12 +214,12 @@ with tabs[1]:
             st.markdown(f"### 💳 {credito['nombre']}")
 
             monto_total = float(credito["monto"])
-            tasa_anual = float(credito["tasa"])
+            tasa_interes = float(credito["tasa"])
             plazo_meses = int(credito["plazo_meses"])
             cuotas_pagadas = int(credito["cuotas_pagadas"])
 
-            cuota_mensual = calcular_cuota_fija(monto_total, tasa_anual, plazo_meses)
-            saldo = saldo_restante(monto_total, tasa_anual, plazo_meses, cuotas_pagadas)
+            cuota_mensual = calcular_cuota_fija(monto_total, tasa_interes, plazo_meses)
+            saldo = saldo_restante(monto_total, tasa_interes, plazo_meses, cuotas_pagadas)
             monto_pagado = cuota_mensual * cuotas_pagadas
 
             progreso = cuotas_pagadas / plazo_meses
@@ -232,7 +232,7 @@ with tabs[1]:
             col3.metric("🧾 Saldo restante", f"${saldo:,.2f}")
 
             st.write(f"💵 Monto total del crédito: ${monto_total:,.2f}")
-            st.write(f"📊 Tasa de interés anual: {tasa_anual:.2f}%")
+            st.write(f"📊 Tasa de interés anual: {tasa_interes:.2f}%")
             st.write(f"💸 Cuota mensual fija: ${cuota_mensual:,.2f}")
 
             # Botón para registrar pago
