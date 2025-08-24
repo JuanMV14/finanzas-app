@@ -108,7 +108,7 @@ with tabs[0]:
             st.markdown(
                 f"""
                 <div style="background-color:#eee;border-radius:8px;margin-bottom:8px;">
-                    <div style="width:{porcentaje*100:.2f}%;background-color:{colores[tipo]};padding:6px 0;border-radius:8px;text-align:center;color:white;">
+                    <div style="width:{porcentaje*100:.2f}%;background-color:{colores[tipo]};padding:6px 0;border-radius:8px;text-align:center;color:black;">
                         ${monto:,.2f}
                     </div>
                 </div>
