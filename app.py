@@ -52,7 +52,7 @@ def obtener_transacciones(user_id: str) -> list:
         return []
 
     try:
-        res = supabase.from("transacciones").select("*").eq("user_id", user_id).execute()
+        res = supabase.table("transacciones").select("*").eq("user_id", user_id).execute()
         if res.data is None:
             print("⚠️ No se encontraron transacciones")
             return []
