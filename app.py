@@ -9,6 +9,7 @@ from datetime import datetime
 from dotenv import load_dotenv
 import os
 from supabase import create_client, Client
+import supabase
 
 # 🔐 Cargar variables de entorno
 load_dotenv()
@@ -36,11 +37,28 @@ def autenticar_usuario(email, password):
 # 📦 Funciones de base de datos
 # ===============================
 
-def obtener_transacciones(user_id):
+def obtener_transacciones(user_id: str) -> list:
+    """
+    Recupera todas las transacciones asociadas a un usuario específico.
+
+    Args:
+        user_id (str): ID del usuario.
+
+    Returns:
+        list: Lista de transacciones o lista vacía si no hay resultados o ocurre un error.
+    """
+    if not user_id or not isinstance(user_id, str):
+        print("❌ user_id inválido")
+        return []
+
     try:
         res = supabase.from("transacciones").select("*").eq("user_id", user_id).execute()
-        return res.data or []
-    except Exception:
+        if res.data is None:
+            print("⚠️ No se encontraron transacciones")
+            return []
+        return res.data
+    except Exception as e:
+        print(f"🚨 Error al obtener transacciones: {e}")
         return []
 
 def obtener_metas(user_id):
