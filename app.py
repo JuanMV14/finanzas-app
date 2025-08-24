@@ -45,7 +45,6 @@ else:
 
     # Contenido principal
     tabs = st.tabs(["Transacciones", "Créditos", "Historial"])
-
 # ==============================
 # TAB 1: TRANSACCIONES
 # ==============================
@@ -81,6 +80,43 @@ with tabs[0]:
                 st.rerun()
             else:
                 st.error("Error al guardar la transacción")
+
+    # 🔍 Visualización de resumen por categoría y tipo
+    from collections import defaultdict
+
+    trans = obtener_transacciones(st.session_state["user"]["id"])
+
+    if trans:
+        st.subheader("📊 Resumen por categoría y tipo")
+
+        resumen = defaultdict(float)
+        for t in trans:
+            clave = (t["tipo"], t["categoria"])
+            resumen[clave] += float(t["monto"])
+
+        total_general = sum(resumen.values())
+
+        colores = {
+            "Ingreso": "green",
+            "Gasto": "red",
+            "Crédito": "orange"
+        }
+
+        for (tipo, categoria), monto in resumen.items():
+            porcentaje = monto / total_general if total_general > 0 else 0
+            st.markdown(f"**{categoria}** ({tipo})")
+            st.markdown(
+                f"""
+                <div style="background-color:#eee;border-radius:8px;margin-bottom:8px;">
+                    <div style="width:{porcentaje*100:.2f}%;background-color:{colores[tipo]};padding:6px 0;border-radius:8px;text-align:center;color:white;">
+                        ${monto:,.2f}
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+    else:
+        st.info("No hay transacciones registradas.")
 
     # ==============================
     # TAB 2: CRÉDITOS
