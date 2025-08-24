@@ -320,10 +320,20 @@ else:
 
         categoria_final = categoria_personalizada if categoria_seleccionada == "Otros" else categoria_seleccionada
 
-        with st.form("nueva_transaccion"):
-            monto = st.number_input("Monto", min_value=0.01, step=1000.0, format="%.2f", key="form_monto")
-            fecha = st.date_input("Fecha", value=date.today(), key="form_fecha")
-            submitted = st.form_submit_button("Guardar", key="form_submit")
+       with st.form("nueva_transaccion"):
+    monto = st.number_input(
+        "Monto",
+        min_value=0.01,
+        step=1000.0,
+        format="%.2f",
+        key="form_monto"
+    )
+    fecha = st.date_input(
+        "Fecha",
+        value=date.today(),
+        key="form_fecha"
+    )
+    submitted = st.form_submit_button("Guardar")  # 🔹 sin key
 
             if submitted:
                 if monto <= 0:
