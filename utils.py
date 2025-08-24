@@ -5,6 +5,7 @@
 import streamlit as st
 
 def login(supabase, email, password):
+    """Iniciar sesión de usuario."""
     try:
         res = supabase.auth.sign_in_with_password({
             "email": email,
@@ -23,6 +24,7 @@ def login(supabase, email, password):
         st.error(f"Error en login: {e}")
 
 def signup(supabase, email, password):
+    """Registrar un nuevo usuario."""
     try:
         res = supabase.auth.sign_up({
             "email": email,
@@ -36,6 +38,7 @@ def signup(supabase, email, password):
         st.error(f"Error en registro: {e}")
 
 def logout(supabase):
+    """Cerrar sesión del usuario actual."""
     try:
         supabase.auth.sign_out()
         st.session_state["user"] = None
