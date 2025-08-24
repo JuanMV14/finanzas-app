@@ -2,7 +2,6 @@
 # queries.py - Funciones para Supabase
 # =====================================
 
-from supabase import Client
 import streamlit as st
 
 # -----------------------------
@@ -10,42 +9,37 @@ import streamlit as st
 # -----------------------------
 def insertar_transaccion(user_id, tipo, categoria, monto, fecha):
     try:
-        from app import supabase  # import dinámico (ya creado en app.py)
-        data, error = supabase.table("transacciones").insert({
+        from app import supabase  # supabase ya creado en app.py
+        res = supabase.table("transacciones").insert({
             "user_id": user_id,
             "tipo": tipo,
             "categoria": categoria,
             "monto": monto,
             "fecha": str(fecha)
         }).execute()
-
-        if error:
-            st.error(f"Error al insertar transacción: {error}")
-        return data
+        # SDK nuevo retorna dict-like con .data
+        return getattr(res, "data", None)
     except Exception as e:
         st.error(f"Excepción al insertar transacción: {e}")
         return None
 
-
 def obtener_transacciones(user_id):
     try:
         from app import supabase
-        res = supabase.table("transacciones").select("*").eq("user_id", user_id).execute()
-        return res.data if res and res.data else []
+        res = supabase.table("transacciones").select("*").eq("user_id", user_id).order("fecha", desc=True).execute()
+        return getattr(res, "data", []) or []
     except Exception as e:
         st.error(f"Error al obtener transacciones: {e}")
         return []
-
 
 def borrar_transaccion(transaccion_id):
     try:
         from app import supabase
         res = supabase.table("transacciones").delete().eq("id", transaccion_id).execute()
-        return res.data if res and res.data else []
+        return getattr(res, "data", []) or []
     except Exception as e:
         st.error(f"Error al borrar transacción: {e}")
         return []
-
 
 # -----------------------------
 # CRÉDITOS
@@ -53,7 +47,7 @@ def borrar_transaccion(transaccion_id):
 def insertar_credito(user_id, nombre, monto, plazo, tasa, cuota, dia_pago):
     try:
         from app import supabase
-        data, error = supabase.table("creditos").insert({
+        res = supabase.table("creditos").insert({
             "user_id": user_id,
             "nombre": nombre,
             "monto": monto,
@@ -63,56 +57,34 @@ def insertar_credito(user_id, nombre, monto, plazo, tasa, cuota, dia_pago):
             "dia_pago": dia_pago,
             "cuotas_pagadas": 0
         }).execute()
-
-        if error:
-            st.error(f"Error al insertar crédito: {error}")
-        return data
+        return getattr(res, "data", None)
     except Exception as e:
         st.error(f"Excepción al insertar crédito: {e}")
         return None
-def obtener_transacciones_con_creditos(user_id: str) -> list:
+
+def obtener_creditos(user_id):
     try:
-        res_tx = supabase.table("transacciones").select("*").eq("user_id", user_id).execute()
-        transacciones = res_tx.data or []
-
-        creditos_ids = list({
-            tx["credito_id"] for tx in transacciones if tx.get("credito_id")
-        })
-
-        creditos_map = {}
-        if creditos_ids:
-            res_cr = supabase.table("creditos").select("*").in_("id", creditos_ids).execute()
-            for credito in res_cr.data or []:
-                creditos_map[credito["id"]] = credito
-
-        for tx in transacciones:
-            cid = tx.get("credito_id")
-            if cid and cid in creditos_map:
-                tx["credito"] = creditos_map[cid]
-
-        return transacciones
-
+        from app import supabase
+        res = supabase.table("creditos").select("*").eq("user_id", user_id).order("created_at", desc=True).execute()
+        return getattr(res, "data", []) or []
     except Exception as e:
-        print(f"🚨 Error al obtener transacciones con créditos: {e}")
+        st.error(f"Error al obtener créditos: {e}")
         return []
 
-
 def update_credito(credito_id, campos):
-    """Actualizar un crédito con los campos dados en dict"""
     try:
         from app import supabase
         res = supabase.table("creditos").update(campos).eq("id", credito_id).execute()
-        return res.data if res and res.data else []
+        return getattr(res, "data", []) or []
     except Exception as e:
         st.error(f"Error al actualizar crédito: {e}")
         return []
 
-
 def registrar_pago(credito_id, user_id, monto, fecha):
-    """Registrar un pago de un crédito: inserta transacción y actualiza cuotas_pagadas"""
+    """Registrar un pago de un crédito: inserta gasto y aumenta cuotas_pagadas."""
     try:
         from app import supabase
-        # Insertamos el pago como gasto
+        # 1) Insertar gasto
         supabase.table("transacciones").insert({
             "user_id": user_id,
             "tipo": "Gasto",
@@ -120,15 +92,55 @@ def registrar_pago(credito_id, user_id, monto, fecha):
             "monto": monto,
             "fecha": str(fecha)
         }).execute()
-
-        # Actualizamos cuotas pagadas
-        credito = obtener_creditos(user_id)
-        for c in credito:
-            if c["id"] == credito_id:
-                cuotas = c.get("cuotas_pagadas", 0) + 1
-                update_credito(credito_id, {"cuotas_pagadas": cuotas})
-                break
+        # 2) Incrementar cuotas_pagadas
+        res = supabase.table("creditos").select("cuotas_pagadas").eq("id", credito_id).single().execute()
+        actuales = (getattr(res, "data", {}) or {}).get("cuotas_pagadas", 0)
+        supabase.table("creditos").update({"cuotas_pagadas": (actuales or 0) + 1}).eq("id", credito_id).execute()
         return True
     except Exception as e:
         st.error(f"Error al registrar pago: {e}")
         return False
+
+# -----------------------------
+# METAS (tabla: metas)
+# -----------------------------
+def insertar_meta(user_id, nombre, monto, ahorrado=0):
+    try:
+        from app import supabase
+        res = supabase.table("metas").insert({
+            "user_id": user_id,
+            "nombre": nombre,
+            "monto": monto,
+            "ahorrado": ahorrado
+        }).execute()
+        return getattr(res, "data", None)
+    except Exception as e:
+        st.error(f"Excepción al insertar meta: {e}")
+        return None
+
+def obtener_metas(user_id):
+    try:
+        from app import supabase
+        res = supabase.table("metas").select("*").eq("user_id", user_id).order("created_at", desc=True).execute()
+        return getattr(res, "data", []) or []
+    except Exception as e:
+        st.error(f"Error al obtener metas: {e}")
+        return []
+
+def update_meta(meta_id, campos):
+    try:
+        from app import supabase
+        res = supabase.table("metas").update(campos).eq("id", meta_id).execute()
+        return getattr(res, "data", []) or []
+    except Exception as e:
+        st.error(f"Error al actualizar meta: {e}")
+        return []
+
+def borrar_meta(meta_id):
+    try:
+        from app import supabase
+        res = supabase.table("metas").delete().eq("id", meta_id).execute()
+        return getattr(res, "data", []) or []
+    except Exception as e:
+        st.error(f"Error al borrar meta: {e}")
+        return []
