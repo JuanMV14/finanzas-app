@@ -62,21 +62,35 @@ else:
     with tabs[0]:
         st.header("📊 Transacciones")
 
-        with st.form("nueva_transaccion"):
-            tipo = st.selectbox("Tipo", ["Ingreso", "Gasto"])
-            categoria = st.text_input("Categoría")
-            monto = st.number_input("Monto", min_value=0.01)
-            fecha = st.date_input("Fecha")
-            submitted = st.form_submit_button("Guardar")
-            if submitted:
-                resp = insertar_transaccion(
-                    st.session_state["user"]["id"], tipo, categoria, monto, fecha
-                )
-                if resp.data:
-                    st.success("Transacción guardada ✅")
-                    st.rerun()
-                else:
-                    st.error("Error al guardar la transacción")
+    with st.form("nueva_transaccion"):
+        tipo = st.selectbox("Tipo", ["Ingreso", "Gasto", "Crédito"])
+
+        categorias = {
+            "Ingreso": ["Salario", "Comisiones", "Ventas", "Otros"],
+            "Gasto": ["Comida", "Gasolina", "Pago TC", "Servicios Públicos", "Ocio", "Entretenimiento", "Otros"],
+            "Crédito": ["Otros"]
+    }
+
+        categoria_seleccionada = st.selectbox("Categoría", categorias[tipo])
+        categoria_personalizada = ""
+        if categoria_seleccionada == "Otros":
+            categoria_personalizada = st.text_input("Especifica la categoría")
+
+        categoria_final = categoria_personalizada if categoria_seleccionada == "Otros" else categoria_seleccionada
+
+        monto = st.number_input("Monto", min_value=0.01)
+        fecha = st.date_input("Fecha")
+        submitted = st.form_submit_button("Guardar")
+
+        if submitted:
+            resp = insertar_transaccion(
+            st.session_state["user"]["id"], tipo, categoria_final, monto, fecha
+        )
+        if resp.data:
+            st.success("Transacción guardada ✅")
+            st.rerun()
+        else:
+            st.error("Error al guardar la transacción")
 
         trans = obtener_transacciones(st.session_state["user"]["id"])
         if trans:
