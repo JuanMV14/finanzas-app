@@ -146,18 +146,32 @@ def mostrar_credito(supabase, credito):
         st.experimental_rerun()  # refresca la pantalla para ver el cambio
 
 for credito in creditos:
-    st.write(f"📌 {credito['nombre']} - {credito['monto']} - {credito['plazo_meses']} meses")
+    st.markdown(f"### 💳 {credito['nombre']}")
 
-    # Barra de progreso
-    progreso = credito["cuotas_pagadas"] / credito["plazo_meses"]
+    monto_total = float(credito["monto"])
+    cuotas_pagadas = int(credito["cuotas_pagadas"])
+    plazo_meses = int(credito["plazo_meses"])
+    cuota_mensual = float(credito["cuota_mensual"])
+
+    monto_pagado = cuotas_pagadas * cuota_mensual
+    monto_restante = monto_total - monto_pagado
+    progreso = cuotas_pagadas / plazo_meses
+
     st.progress(progreso)
 
-    # Botón para registrar pago
+    col1, col2, col3 = st.columns(3)
+    col1.metric("📅 Cuotas pagadas", f"{cuotas_pagadas} / {plazo_meses}")
+    col2.metric("💰 Monto pagado", f"${monto_pagado:,.2f}")
+    col3.metric("🧾 Monto restante", f"${monto_restante:,.2f}")
+
+    st.write(f"💵 Monto total del crédito: ${monto_total:,.2f}")
+    st.write(f"💸 Cuota mensual: ${cuota_mensual:,.2f}")
+
     if st.button(f"Registrar pago {credito['nombre']}", key=credito["id"]):
-        if credito["cuotas_pagadas"] < credito["plazo_meses"]:
+        if cuotas_pagadas < plazo_meses:
             update_credito(
                 credito["id"],
-                {"cuotas_pagadas": credito["cuotas_pagadas"] + 1}
+                {"cuotas_pagadas": cuotas_pagadas + 1}
             )
             st.success("✅ Pago registrado")
             st.experimental_rerun()
