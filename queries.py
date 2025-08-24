@@ -70,15 +70,30 @@ def insertar_credito(user_id, nombre, monto, plazo, tasa, cuota, dia_pago):
     except Exception as e:
         st.error(f"Excepción al insertar crédito: {e}")
         return None
-
-
-def obtener_creditos(user_id):
+def obtener_transacciones_con_creditos(user_id: str) -> list:
     try:
-        from app import supabase
-        res = supabase.table("creditos").select("*").eq("user_id", user_id).execute()
-        return res.data if res and res.data else []
+        res_tx = supabase.table("transacciones").select("*").eq("user_id", user_id).execute()
+        transacciones = res_tx.data or []
+
+        creditos_ids = list({
+            tx["credito_id"] for tx in transacciones if tx.get("credito_id")
+        })
+
+        creditos_map = {}
+        if creditos_ids:
+            res_cr = supabase.table("creditos").select("*").in_("id", creditos_ids).execute()
+            for credito in res_cr.data or []:
+                creditos_map[credito["id"]] = credito
+
+        for tx in transacciones:
+            cid = tx.get("credito_id")
+            if cid and cid in creditos_map:
+                tx["credito"] = creditos_map[cid]
+
+        return transacciones
+
     except Exception as e:
-        st.error(f"Error al obtener créditos: {e}")
+        print(f"🚨 Error al obtener transacciones con créditos: {e}")
         return []
 
 
