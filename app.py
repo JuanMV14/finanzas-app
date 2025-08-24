@@ -202,12 +202,7 @@ with tabs[1]:
             nombre = str(credito.get("nombre", "Sin nombre"))
             monto = float(credito.get("monto", 0) or 0)
             plazo_meses = int(credito.get("plazo_meses", 0) or 0)
-            tasa_anual = float(
-                credito.get("tasa")
-                or credito.get("Tasa de interés anual (%)")
-                or credito.get("tasa_anual")
-                or 0
-            )
+            tasa_anual = float(credito.get("tasa_interes") or 0)
             cuotas_pagadas = int(credito.get("cuotas_pagadas", 0) or 0)
 
             # Normalizaciones
