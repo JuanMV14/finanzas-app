@@ -93,87 +93,70 @@ else:
         else:
             st.info("No tienes transacciones registradas.")
 
-    # ==============================
-    # TAB 2: CRÉDITOS
-    # ==============================
-    with tabs[1]:
-        st.header("💳 Créditos")
+# ==============================
+# TAB 2: CRÉDITOS
+# ==============================
+with tabs[1]:
+    st.header("💳 Créditos")
 
-        with st.form("nuevo_credito"):
-            nombre = st.text_input("Nombre del crédito")
-            monto = st.number_input("Monto", min_value=0.01)
-            tasa = st.number_input("Tasa de interés (%)", min_value=0.0)
-            plazo_meses = st.number_input("Plazo (meses)", min_value=1, step=1)
-            cuotas_pagadas = st.number_input("Cuotas pagadas", min_value=0, step=1)
-            cuota_mensual = st.number_input("Cuota mensual", min_value=0.01)
-            submitted = st.form_submit_button("Guardar crédito")
-            if submitted:
-                resp = insertar_credito(
-                    st.session_state["user"]["id"],
-                    nombre,
-                    monto,
-                    tasa,
-                    plazo_meses,
-                    cuotas_pagadas,
-                    cuota_mensual,
-                )
-                if resp.data:
-                    st.success("Crédito guardado ✅")
-                    st.rerun()
-                else:
-                    st.error("Error al guardar el crédito")
-
-        creditos = obtener_creditos(st.session_state["user"]["id"])
-        if creditos:
-            st.subheader("Tus créditos")
-            for c in creditos:
-                st.write(f"📌 {c['nombre']} - {c['monto']} - {c['plazo_meses']} meses")
-        else:
-            st.info("No tienes créditos registrados.")
-def mostrar_credito(supabase, credito):
-    st.subheader(f"💳 {credito['nombre']}")
-    
-    progreso = credito['cuotas_pagadas'] / credito['plazo_meses']
-    st.progress(progreso)
-
-    st.write(f"📊 Pagadas: {credito['cuotas_pagadas']} de {credito['plazo_meses']}")
-    st.write(f"📅 Faltan: {credito['plazo_meses'] - credito['cuotas_pagadas']} meses")
-    st.write(f"💰 Cuota mensual: {credito['cuota_mensual']:.2f}")
-
-    if st.button(f"Registrar pago ➕", key=credito['id']):
-        registrar_pago(supabase, credito['id'])
-        st.success("✅ Pago registrado correctamente")
-        st.experimental_rerun()  # refresca la pantalla para ver el cambio
-
-for credito in creditos:
-    st.markdown(f"### 💳 {credito['nombre']}")
-
-    monto_total = float(credito["monto"])
-    cuotas_pagadas = int(credito["cuotas_pagadas"])
-    plazo_meses = int(credito["plazo_meses"])
-    cuota_mensual = float(credito["cuota_mensual"])
-
-    monto_pagado = cuotas_pagadas * cuota_mensual
-    monto_restante = monto_total - monto_pagado
-    progreso = cuotas_pagadas / plazo_meses
-
-    st.progress(progreso)
-
-    col1, col2, col3 = st.columns(3)
-    col1.metric("📅 Cuotas pagadas", f"{cuotas_pagadas} / {plazo_meses}")
-    col2.metric("💰 Monto pagado", f"${monto_pagado:,.2f}")
-    col3.metric("🧾 Monto restante", f"${monto_restante:,.2f}")
-
-    st.write(f"💵 Monto total del crédito: ${monto_total:,.2f}")
-    st.write(f"💸 Cuota mensual: ${cuota_mensual:,.2f}")
-
-    if st.button(f"Registrar pago {credito['nombre']}", key=credito["id"]):
-        if cuotas_pagadas < plazo_meses:
-            update_credito(
-                credito["id"],
-                {"cuotas_pagadas": cuotas_pagadas + 1}
+    with st.form("nuevo_credito"):
+        nombre = st.text_input("Nombre del crédito")
+        monto = st.number_input("Monto", min_value=0.01)
+        tasa = st.number_input("Tasa de interés (%)", min_value=0.0)
+        plazo_meses = st.number_input("Plazo (meses)", min_value=1, step=1)
+        cuotas_pagadas = st.number_input("Cuotas pagadas", min_value=0, step=1)
+        cuota_mensual = st.number_input("Cuota mensual", min_value=0.01)
+        submitted = st.form_submit_button("Guardar crédito")
+        if submitted:
+            resp = insertar_credito(
+                st.session_state["user"]["id"],
+                nombre,
+                monto,
+                tasa,
+                plazo_meses,
+                cuotas_pagadas,
+                cuota_mensual,
             )
-            st.success("✅ Pago registrado")
-            st.experimental_rerun()
-        else:
-            st.warning("⚠️ Este crédito ya está totalmente pagado.")
+            if resp.data:
+                st.success("Crédito guardado ✅")
+                st.rerun()
+            else:
+                st.error("Error al guardar el crédito")
+
+    creditos = obtener_creditos(st.session_state["user"]["id"])
+    if creditos:
+        st.subheader("Tus créditos")
+        for credito in creditos:
+            st.markdown(f"### 💳 {credito['nombre']}")
+
+            monto_total = float(credito["monto"])
+            cuotas_pagadas = int(credito["cuotas_pagadas"])
+            plazo_meses = int(credito["plazo_meses"])
+            cuota_mensual = float(credito["cuota_mensual"])
+
+            monto_pagado = cuotas_pagadas * cuota_mensual
+            monto_restante = monto_total - monto_pagado
+            progreso = cuotas_pagadas / plazo_meses
+
+            st.progress(progreso)
+
+            col1, col2, col3 = st.columns(3)
+            col1.metric("📅 Cuotas pagadas", f"{cuotas_pagadas} / {plazo_meses}")
+            col2.metric("💰 Monto pagado", f"${monto_pagado:,.2f}")
+            col3.metric("🧾 Monto restante", f"${monto_restante:,.2f}")
+
+            st.write(f"💵 Monto total del crédito: ${monto_total:,.2f}")
+            st.write(f"💸 Cuota mensual: ${cuota_mensual:,.2f}")
+
+            if st.button(f"Registrar pago {credito['nombre']}", key=credito["id"]):
+                if cuotas_pagadas < plazo_meses:
+                    update_credito(
+                        credito["id"],
+                        {"cuotas_pagadas": cuotas_pagadas + 1}
+                    )
+                    st.success("✅ Pago registrado")
+                    st.experimental_rerun()
+                else:
+                    st.warning("⚠️ Este crédito ya está totalmente pagado.")
+    else:
+        st.info("No tienes créditos registrados.")
