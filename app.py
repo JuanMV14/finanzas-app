@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 import os
 from queries import registrar_pago
 from queries import update_credito
+from datetime import date
 
 # Cargar variables de entorno
 load_dotenv()
