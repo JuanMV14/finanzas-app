@@ -44,6 +44,9 @@ else:
     if st.sidebar.button("Cerrar Sesión"):
         logout(supabase)
 
+    # Definir pestañas
+    tabs = st.tabs(["Transacciones", "Créditos", "Historial"])
+
     # Función para borrar transacción y ajustar crédito si aplica
     def borrar_transaccion_y_ajustar_credito(user_id, transaccion):
         borrar_transaccion(user_id, transaccion["id"])
@@ -223,28 +226,28 @@ else:
                             date.today()
                         )
                         st.success("✅ Pago registrado")
-                        st.experimental_rerun()
+                        st.rerun()
                     else:
                         st.warning("⚠️ Este crédito ya está totalmente pagado.")
         else:
             st.info("No tienes créditos registrados.")
 
-# ==============================
-# TAB 3: HISTORIAL COMPLETO
-# ==============================
-with tabs[2]:
-    st.header("📜 Historial completo de transacciones")
+    # ==============================
+    # TAB 3: HISTORIAL COMPLETO
+    # ==============================
+    with tabs[2]:
+        st.header("📜 Historial completo de transacciones")
 
-    trans_all = obtener_transacciones(st.session_state["user"]["id"])
-    if trans_all:
-        for t in trans_all:
-            col1, col2, col3, col4, col5 = st.columns(5)
-            col1.write(t["tipo"])
-            col2.write(t["categoria"])
-            col3.write(t["monto"])
-            col4.write(t["fecha"])
-            if col5.button("🗑️", key=f"hist_{t['id']}"):
-                borrar_transaccion(st.session_state["user"]["id"], t["id"])
-                st.rerun()
-    else:
-        st.info("No hay transacciones registradas.")
+        trans_all = obtener_transacciones(st.session_state["user"]["id"])
+        if trans_all:
+            for t in trans_all:
+                col1, col2, col3, col4, col5 = st.columns(5)
+                col1.write(t["tipo"])
+                col2.write(t["categoria"])
+                col3.write(t["monto"])
+                col4.write(t["fecha"])
+                if col5.button("🗑️", key=f"hist_{t['id']}"):
+                    borrar_transaccion(st.session_state["user"]["id"], t["id"])
+                    st.rerun()
+        else:
+            st.info("No hay transacciones registradas.")
