@@ -214,7 +214,7 @@ with tabs[1]:
             st.markdown(f"### 💳 {credito['nombre']}")
 
             monto_total = float(credito["monto"])
-            tasa_interes = float(credito["tasa"])
+            tasa_interes = float(credito["tasa_interes"])
             plazo_meses = int(credito["plazo_meses"])
             cuotas_pagadas = int(credito["cuotas_pagadas"])
 
