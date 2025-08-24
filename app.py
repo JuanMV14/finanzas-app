@@ -157,6 +157,62 @@ with tab1:
         col2.metric("Gastos", f"${gastos:,.2f}")
         col3.metric("Créditos", f"${creditos:,.2f}")
 
+# ============================
+# 3. Créditos
+# ============================
+with tabs[2]:
+    st.header("💳 Créditos")
+
+    # Formulario para nuevo crédito
+    with st.form("nuevo_credito"):
+        nombre = st.text_input("Nombre del crédito")
+        monto = st.number_input("Monto total", min_value=0.0, step=1000.0)
+        plazo = st.number_input("Plazo (meses)", min_value=1, step=1)
+        tasa = st.number_input("Tasa anual (%)", min_value=0.0, step=0.1)
+        cuota = st.number_input("Cuota mensual", min_value=0.0, step=1000.0)
+        dia_pago = st.number_input("Día de pago (1-28)", min_value=1, max_value=28, step=1, value=14)
+        submitted = st.form_submit_button("Guardar crédito")
+        if submitted:
+            try:
+                insertar_credito(st.session_state["user"]["id"], nombre, monto, plazo, tasa, cuota, dia_pago)
+                st.success("Crédito guardado ✅")
+                st.experimental_rerun()
+            except Exception as e:
+                st.error("Error al guardar crédito")
+                st.exception(e)
+
+    # Mostrar créditos existentes
+    creditos = safe_obtener_creditos(st.session_state["user"]["id"]) or []
+    transacciones = obtener_transacciones_con_creditos(st.session_state["user"]["id"]) or []
+
+    if creditos:
+        for c in creditos:
+            st.subheader(f"🏦 {c.get('nombre')} — ${c.get('monto'):,.2f}")
+
+            # Filtrar pagos asociados a este crédito
+            pagos = [
+                tx for tx in transacciones
+                if tx.get("credito_id") == c["id"] and tx.get("tipo") == "pago_credito"
+            ]
+
+            cuotas_pagadas = len(pagos)
+            plazo = c.get("plazo", 1)
+            cuota = c.get("cuota", 0)
+            saldo_restante = max(0, c["monto"] - cuota * cuotas_pagadas)
+            progreso = min(1.0, cuotas_pagadas / plazo)
+
+            st.write(f"🗓️ Cuotas pagadas: {cuotas_pagadas} / {plazo}")
+            st.write(f"💰 Saldo restante: ${saldo_restante:,.2f}")
+            st.progress(progreso)
+
+            if pagos:
+                with st.expander("📄 Ver pagos"):
+                    for p in pagos:
+                        fecha = p.get("fecha", "Sin fecha")
+                        monto = p.get("monto", 0)
+                        st.write(f"- {fecha}: ${monto:,.2f}")
+
+
 # ===============================
 # 🎯 Tab: Metas de Ahorro
 # ===============================
