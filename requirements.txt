@@ -1,4 +1,14 @@
-streamlit==1.32
-supabase==2.4.6
+# Core
+streamlit==1.38.0
 python-dotenv==1.0.1
-matplotlib
+
+# Supabase client
+supabase==2.5.1
+
+# Utilidades
+requests==2.32.3
+pandas==2.2.2
+numpy==2.0.1
+
+# Manejo de fechas
+python-dateutil==2.9.0.post0
