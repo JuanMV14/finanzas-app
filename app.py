@@ -50,7 +50,7 @@ else:
     # Función para borrar transacción y ajustar crédito si aplica
     def borrar_transaccion_y_ajustar_credito(user_id, transaccion):
         borrar_transaccion(user_id, transaccion["id"])
-        if transaccion["tipo"] == "Crédito":
+        if transaccion["tipo"] == "Gasto":  # pagos de créditos se registran como Gasto
             creditos = obtener_creditos(user_id)
             for credito in creditos:
                 if credito["nombre"] == transaccion["categoria"]:
@@ -157,142 +157,125 @@ else:
         else:
             st.info("No hay transacciones registradas.")
 
+    # ==============================
+    # TAB 2: CRÉDITOS
+    # ==============================
+    with tabs[1]:
+        st.header("💳 Créditos")
 
-# ==============================
-# TAB 2: CRÉDITOS
-# ==============================
-with tabs[1]:
-    st.header("💳 Créditos")
+        # ---------- Formulario para registrar nuevo crédito ----------
+        with st.expander("➕ Registrar nuevo crédito"):
+            with st.form("form_credito"):
+                nombre = st.text_input("Nombre del crédito (Banco/TC/etc.)", placeholder="Bancolombia / Visa / etc.")
+                monto = st.number_input("Monto del crédito", min_value=0.0, step=1000.0, format="%.2f")
+                plazo_meses = st.number_input("Plazo (meses)", min_value=1, step=1)
+                tasa_anual = st.number_input("Tasa efectiva anual (EA) %", min_value=0.0, step=0.01, format="%.2f")
+                cuota_mensual = st.number_input("Cuota mensual real", min_value=0.0, step=1000.0, format="%.2f")
+                submitted_credito = st.form_submit_button("Guardar crédito")
 
-    # ---------- Formulario para registrar nuevo crédito ----------
-    with st.expander("➕ Registrar nuevo crédito"):
-        with st.form("form_credito"):
-            nombre = st.text_input("Nombre del crédito (Banco/TC/etc.)", placeholder="Bancolombia / Visa / etc.")
-            monto = st.number_input("Monto del crédito", min_value=0.0, step=1000.0, format="%.2f")
-            plazo_meses = st.number_input("Plazo (meses)", min_value=1, step=1)
-            tasa_anual = st.number_input("Tasa efectiva anual (EA) %", min_value=0.0, step=0.01, format="%.2f")
-            cuota_mensual = st.number_input("Cuota mensual real", min_value=0.0, step=1000.0, format="%.2f")
-            submitted_credito = st.form_submit_button("Guardar crédito")
+                if submitted_credito:
+                    try:
+                        resp = insertar_credito(
+                            st.session_state["user"]["id"],
+                            nombre, monto, plazo_meses, tasa_anual, cuota_mensual
+                        )
+                    except TypeError:
+                        payload = {
+                            "nombre": nombre,
+                            "monto": monto,
+                            "plazo_meses": plazo_meses,
+                            "tasa_interes": tasa_anual,
+                            "cuota_mensual": cuota_mensual,
+                            "cuotas_pagadas": 0
+                        }
+                        resp = insertar_credito(st.session_state["user"]["id"], payload)
 
-            if submitted_credito:
-                try:
-                    resp = insertar_credito(
-                        st.session_state["user"]["id"],
-                        nombre, monto, plazo_meses, tasa_anual, cuota_mensual
-                    )
-                except TypeError:
-                    payload = {
-                        "nombre": nombre,
-                        "monto": monto,
-                        "plazo_meses": plazo_meses,
-                        "tasa_interes": tasa_anual,
-                        "cuota_mensual": cuota_mensual,
-                        "cuotas_pagadas": 0
-                    }
-                    resp = insertar_credito(st.session_state["user"]["id"], payload)
+                    if getattr(resp, "data", None) is not None or resp:
+                        st.success("Crédito guardado ✅")
+                        st.rerun()
+                    else:
+                        st.error("No se pudo guardar el crédito")
 
-                if getattr(resp, "data", None) is not None or resp:
-                    st.success("Crédito guardado ✅")
-                    st.rerun()
-                else:
-                    st.error("No se pudo guardar el crédito")
+        # ---------- Listado de créditos ----------
+        creditos = obtener_creditos(st.session_state["user"]["id"])
 
-    # ---------- Listado de créditos ----------
-    creditos = obtener_creditos(st.session_state["user"]["id"])
+        if creditos:
+            for credito in creditos:
+                nombre = str(credito.get("nombre", "Sin nombre"))
+                monto = float(credito.get("monto", 0) or 0)
+                plazo_meses = int(credito.get("plazo_meses", 0) or 0)
+                tasa_anual = float(credito.get("tasa_interes") or 0)
+                cuota_mensual = float(credito.get("cuota_mensual") or 0)
+                cuotas_pagadas = int(credito.get("cuotas_pagadas", 0) or 0)
 
-    if creditos:
-        for credito in creditos:
-            nombre = str(credito.get("nombre", "Sin nombre"))
-            monto = float(credito.get("monto", 0) or 0)
-            plazo_meses = int(credito.get("plazo_meses", 0) or 0)
-            tasa_anual = float(credito.get("tasa_interes") or 0)
-            cuota_mensual = float(credito.get("cuota_mensual") or 0)
-            cuotas_pagadas = int(credito.get("cuotas_pagadas", 0) or 0)
+                cuotas_pagadas = max(0, min(cuotas_pagadas, plazo_meses))
+                progreso = (cuotas_pagadas / plazo_meses) if plazo_meses > 0 else 0.0
 
-            cuotas_pagadas = max(0, min(cuotas_pagadas, plazo_meses))
-            progreso = (cuotas_pagadas / plazo_meses) if plazo_meses > 0 else 0.0
+                st.subheader(f"🏦 {nombre}")
 
-            st.subheader(f"🏦 {nombre}")
-
-            # Barra progresiva
-            st.markdown(
-                f"""
-                <div style="background:#eee;border-radius:10px;overflow:hidden;height:22px;margin:6px 0 12px 0;">
-                    <div style="width:{progreso*100:.2f}% ;
-                                background:#2196F3;
-                                height:22px;
-                                display:flex;
-                                align-items:center;
-                                justify-content:center;
-                                color:white;
-                                font-size:12px;">
-                        {cuotas_pagadas}/{plazo_meses} cuotas ({progreso*100:.1f}%)
+                # Barra progresiva
+                st.markdown(
+                    f"""
+                    <div style="background:#eee;border-radius:10px;overflow:hidden;height:22px;margin:6px 0 12px 0;">
+                        <div style="width:{progreso*100:.2f}%;
+                                    background:#2196F3;
+                                    height:22px;
+                                    display:flex;
+                                    align-items:center;
+                                    justify-content:center;
+                                    color:white;
+                                    font-size:12px;">
+                            {cuotas_pagadas}/{plazo_meses} cuotas ({progreso*100:.1f}%)
+                        </div>
                     </div>
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
-
-            col1, col2, col3, col4 = st.columns(4)
-            col1.write(f"💰 **Monto**: ${monto:,.2f}")
-            col2.write(f"📅 **Plazo**: {plazo_meses} meses")
-            col3.write(f"📈 **Tasa EA**: {tasa_anual:.2f}%")
-            col4.write(f"✅ **Cuotas pagadas**: {cuotas_pagadas}")
-
-            col5, col6 = st.columns(2)
-            col5.write(f"💳 **Cuota mensual (real)**: ${cuota_mensual:,.2f}")
-
-            # 🔹 Botón para registrar pago (reemplaza saldo restante)
-            if col6.button("Registrar pago", key=f"pago_{credito['id']}"):
-                # 1. Insertar transacción
-                resp = insertar_transaccion(
-                    st.session_state["user"]["id"],
-                    "Gasto",
-                    nombre,  # categoría = nombre del crédito
-                    cuota_mensual,
-                    date.today()
+                    """,
+                    unsafe_allow_html=True
                 )
 
-                # 2. Actualizar crédito (+1 cuota pagada)
-                update_credito(credito["id"], {"cuotas_pagadas": cuotas_pagadas + 1})
+                col1, col2, col3, col4 = st.columns(4)
+                col1.write(f"💰 **Monto**: ${monto:,.2f}")
+                col2.write(f"📅 **Plazo**: {plazo_meses} meses")
+                col3.write(f"📈 **Tasa EA**: {tasa_anual:.2f}%")
+                col4.write(f"✅ **Cuotas pagadas**: {cuotas_pagadas}")
 
-                st.success(f"Pago registrado en {nombre} ✅")
-                st.rerun()
+                col5, col6 = st.columns(2)
+                col5.write(f"💳 **Cuota mensual (real)**: ${cuota_mensual:,.2f}")
 
-            st.divider()
-    else:
-        st.info("No tienes créditos registrados.")
+                # ✅ Botón para registrar pago
+                if st.button(f"💵 Registrar pago de {nombre}", key=f"pago_{credito['id']}"):
+                    insertar_transaccion(
+                        st.session_state["user"]["id"],
+                        "Gasto",
+                        nombre,
+                        cuota_mensual,
+                        date.today()
+                    )
+                    update_credito(credito["id"], {"cuotas_pagadas": cuotas_pagadas + 1})
+                    st.success(f"✅ Pago de ${cuota_mensual:,.2f} registrado en {nombre}")
+                    st.balloons()
+                    st.rerun()
 
+                st.divider()
+        else:
+            st.info("No tienes créditos registrados.")
 
-# ==============================
-# TAB 3: HISTORIAL COMPLETO
-# ==============================
-with tabs[2]:
-    st.header("📜 Historial completo de transacciones")
+    # ==============================
+    # TAB 3: HISTORIAL COMPLETO
+    # ==============================
+    with tabs[2]:
+        st.header("📜 Historial completo de transacciones")
 
-    trans_all = obtener_transacciones(st.session_state["user"]["id"])
-    if trans_all:
-        for t in trans_all:
-            col1, col2, col3, col4, col5 = st.columns(5)
-            col1.write(t["tipo"])
-            col2.write(t["categoria"])
-            col3.write(f"${float(t['monto']):,.2f}")
-            col4.write(t["fecha"])
-
-            if col5.button("🗑️", key=f"hist_{t['id']}"):
-                # Borrar transacción
-                borrar_transaccion(st.session_state["user"]["id"], t["id"])
-
-                # Si era un pago de crédito → restar cuota pagada
-                creditos = obtener_creditos(st.session_state["user"]["id"])
-                for credito in creditos:
-                    if credito["nombre"] == t["categoria"]:
-                        cuotas_actuales = int(credito["cuotas_pagadas"])
-                        if cuotas_actuales > 0:
-                            update_credito(credito["id"], {"cuotas_pagadas": cuotas_actuales - 1})
-                        break
-
-                st.rerun()
-    else:
-        st.info("No hay transacciones registradas.")
-
+        trans_all = obtener_transacciones(st.session_state["user"]["id"])
+        if trans_all:
+            for t in trans_all:
+                col1, col2, col3, col4, col5 = st.columns(5)
+                col1.write(t["tipo"])
+                col2.write(t["categoria"])
+                col3.write(t["monto"])
+                col4.write(t["fecha"])
+                if col5.button("🗑️", key=f"hist_{t['id']}"):
+                    borrar_transaccion_y_ajustar_credito(st.session_state["user"]["id"], t)
+                    st.success("🗑️ Transacción eliminada correctamente")
+                    st.rerun()
+        else:
+            st.info("No hay transacciones registradas.")
