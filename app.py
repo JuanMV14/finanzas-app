@@ -66,45 +66,38 @@ def descargar_bytes(nombre_archivo: str, data_bytes: bytes, label="Descargar"):
 # Configuración de página
 # ============================
 st.set_page_config(page_title="Finanzas Personales", layout="wide")
-
 # ============================
-# Sidebar único
+# Sidebar único (corregido)
 # ============================
-def dibujar_sidebar():
-    with st.sidebar:
-        st.title("Menú")
+with st.sidebar:
+    st.title("Menú")
 
-        if st.session_state["user"] is None:
-            menu_auth = st.radio("Selecciona una opción:", ["Login", "Registro"], index=0, key="menu_auth")
+    if st.session_state["user"] is None:
+        menu_auth = st.radio("Selecciona una opción:", ["Login", "Registro"], index=0, key="menu_auth")
 
-            if menu_auth == "Login":
-                st.subheader("Iniciar Sesión")
-                with st.form("login_form", clear_on_submit=True):
-                    email = st.text_input("Correo electrónico", key="login_email")
-                    password = st.text_input("Contraseña", type="password", key="login_pass")
-                    submitted = st.form_submit_button("Ingresar")
-                    if submitted:
-                        login(supabase, email, password)
-
-            else:
-                st.subheader("Crear Cuenta")
-                with st.form("signup_form", clear_on_submit=True):
-                    email_reg = st.text_input("Correo electrónico (registro)", key="reg_email")
-                    password_reg = st.text_input("Contraseña (registro)", type="password", key="reg_pass")
-                    submitted = st.form_submit_button("Registrarse")
-                    if submitted:
-                        signup(supabase, email_reg, password_reg)
+        if menu_auth == "Login":
+            st.subheader("Iniciar Sesión")
+            with st.form("login_form", clear_on_submit=True):
+                email = st.text_input("Correo electrónico", key="login_email")
+                password = st.text_input("Contraseña", type="password", key="login_pass")
+                submitted = st.form_submit_button("Ingresar")
+                if submitted:
+                    login(supabase, email, password)
 
         else:
-            st.write(f"👤 {st.session_state['user'].get('email', 'Usuario')}")
-            if st.button("Cerrar Sesión", use_container_width=True, key="btn_logout"):
-                logout(supabase)
+            st.subheader("Crear Cuenta")
+            with st.form("signup_form", clear_on_submit=True):
+                email_reg = st.text_input("Correo electrónico (registro)", key="reg_email")
+                password_reg = st.text_input("Contraseña (registro)", type="password", key="reg_pass")
+                submitted = st.form_submit_button("Registrarse")
+                if submitted:
+                    signup(supabase, email_reg, password_reg)
 
-dibujar_sidebar()
+    else:
+        st.write(f"👤 {st.session_state['user'].get('email', 'Usuario')}")
+        if st.button("Cerrar Sesión", use_container_width=True):  # 🔥 sin key aquí
+            logout(supabase)
 
-# Si no hay usuario logueado, parar aquí
-if st.session_state["user"] is None:
-    st.stop()
 
 # ============================
 # Helpers seguros
