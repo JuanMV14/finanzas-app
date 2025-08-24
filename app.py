@@ -50,54 +50,39 @@ else:
     # TAB 1: TRANSACCIONES
     # ==============================
     with tabs[0]:
-    st.header("📊 Transacciones")
+        st.header("📊 Transacciones")
 
-    tipo = st.selectbox("Tipo", ["Ingreso", "Gasto", "Crédito"])
+        tipo = st.selectbox("Tipo", ["Ingreso", "Gasto", "Crédito"])
 
-    categorias = {
-        "Ingreso": ["Salario", "Comisiones", "Ventas", "Otros"],
-        "Gasto": ["Comida", "Gasolina", "Pago TC", "Servicios Públicos", "Ocio", "Entretenimiento", "Otros"],
-        "Crédito": ["Otros"]
-    }
+        categorias = {
+            "Ingreso": ["Salario", "Comisiones", "Ventas", "Otros"],
+            "Gasto": ["Comida", "Gasolina", "Pago TC", "Servicios Públicos", "Ocio", "Entretenimiento", "Otros"],
+            "Crédito": ["Otros"]
+        }
 
-    categoria_seleccionada = st.selectbox("Categoría", categorias[tipo])
-    categoria_personalizada = ""
-    if categoria_seleccionada == "Otros":
-        categoria_personalizada = st.text_input("Especifica la categoría")
+        categoria_seleccionada = st.selectbox("Categoría", categorias[tipo])
+        categoria_personalizada = ""
+        if categoria_seleccionada == "Otros":
+            categoria_personalizada = st.text_input("Especifica la categoría")
 
-    categoria_final = categoria_personalizada if categoria_seleccionada == "Otros" else categoria_seleccionada
+        categoria_final = categoria_personalizada if categoria_seleccionada == "Otros" else categoria_seleccionada
 
-    with st.form("nueva_transaccion"):
-        monto = st.number_input("Monto", min_value=0.01)
-        fecha = st.date_input("Fecha")
-        submitted = st.form_submit_button("Guardar")
+        with st.form("nueva_transaccion"):
+            monto = st.number_input("Monto", min_value=0.01)
+            fecha = st.date_input("Fecha")
+            submitted = st.form_submit_button("Guardar")
 
-        if submitted:
-            resp = insertar_transaccion(
-                st.session_state["user"]["id"], tipo, categoria_final, monto, fecha
-            )
-            if resp.data:
-                st.success("Transacción guardada ✅")
-                st.rerun()
-            else:
-                st.error("Error al guardar la transacción")
+            if submitted:
+                resp = insertar_transaccion(
+                    st.session_state["user"]["id"], tipo, categoria_final, monto, fecha
+                )
+                if resp.data:
+                    st.success("Transacción guardada ✅")
+                    st.rerun()
+                else:
+                    st.error("Error al guardar la transacción")
 
-    trans = obtener_transacciones(st.session_state["user"]["id"])
-    if trans:
-        st.subheader("Tus transacciones")
-        for t in trans:
-            col1, col2, col3, col4, col5 = st.columns(5)
-            col1.write(t["tipo"])
-            col2.write(t["categoria"])
-            col3.write(t["monto"])
-            col4.write(t["fecha"])
-            if col5.button("🗑️", key=t["id"]):
-                borrar_transaccion(st.session_state["user"]["id"], t["id"])
-                st.rerun()
-    else:
-        st.info("No tienes transacciones registradas.")
-
-    trans = obtener_transacciones(st.session_state["user"]["id"])
+        trans = obtener_transacciones(st.session_state["user"]["id"])
         if trans:
             st.subheader("Tus transacciones")
             for t in trans:
