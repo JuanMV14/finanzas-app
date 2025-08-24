@@ -158,103 +158,41 @@ else:
             st.info("No hay transacciones registradas.")
 
 # ==============================
-# TAB 2: CRÉDITOS (con intereses reales)
+# TAB 2: CRÉDITOS
 # ==============================
 with tabs[1]:
     st.header("💳 Créditos")
 
-    # Funciones auxiliares
-    def calcular_cuota_fija(monto, tasa_interes, plazo_meses):
-        i = tasa_interes / 100 / 12  # tasa mensual
-        if i == 0:  # caso sin interés
-            return monto / plazo_meses
-        return monto * i / (1 - (1 + i) ** -plazo_meses)
+    creditos = obtener_creditos(supabase, st.session_state["user"]["id"])
 
-    def saldo_restante(monto, tasa_interes, plazo_meses, cuotas_pagadas):
-        i = tasa_interes / 100 / 12
-        cuota = calcular_cuota_fija(monto, tasa_interes, plazo_meses)
-        saldo = monto
-        for _ in range(cuotas_pagadas):
-            interes = saldo * i
-            abono_capital = cuota - interes
-            saldo -= abono_capital
-        return saldo
-
-    # Formulario para nuevo crédito
-    with st.form("nuevo_credito"):
-        nombre = st.text_input("Nombre del crédito")
-        monto = st.number_input("Monto del crédito", min_value=0.01)
-        tasa = st.number_input("Tasa de interés anual (%)", min_value=0.0)
-        plazo_meses = st.number_input("Plazo (meses)", min_value=1, step=1)
-        cuotas_pagadas = st.number_input("Cuotas pagadas", min_value=0, step=1)
-
-        submitted = st.form_submit_button("Guardar crédito")
-        if submitted:
-            cuota_mensual = calcular_cuota_fija(monto, tasa, plazo_meses)
-            resp = insertar_credito(
-                st.session_state["user"]["id"],
-                nombre,
-                monto,
-                tasa,
-                plazo_meses,
-                cuotas_pagadas,
-                cuota_mensual,
-            )
-            if resp.data:
-                st.success("Crédito guardado ✅")
-                st.rerun()
-            else:
-                st.error("Error al guardar el crédito")
-
-    # Mostrar créditos existentes
-    creditos = obtener_creditos(st.session_state["user"]["id"])
     if creditos:
-        st.subheader("Tus créditos")
         for credito in creditos:
-            st.markdown(f"### 💳 {credito['nombre']}")
+            st.subheader(f"🏦 {credito['nombre']}")
 
-            monto_total = float(credito["monto"])
-            tasa_interes = float(credito["tasa_interes"])
+            monto = float(credito["monto"])
             plazo_meses = int(credito["plazo_meses"])
+            tasa_anual = float(
+                credito.get("tasa") or credito.get("Tasa de interés anual (%)") or 0
+            )
             cuotas_pagadas = int(credito["cuotas_pagadas"])
 
-            cuota_mensual = calcular_cuota_fija(monto_total, tasa_interes, plazo_meses)
-            saldo = saldo_restante(monto_total, tasa_interes, plazo_meses, cuotas_pagadas)
-            monto_pagado = cuota_mensual * cuotas_pagadas
+            # ✅ Conversión correcta de EA → tasa efectiva mensual
+            tasa_mensual = (1 + tasa_anual / 100) ** (1 / 12) - 1
 
-            progreso = cuotas_pagadas / plazo_meses
+            # ✅ Fórmula sistema francés (cuota fija)
+            cuota = monto * (tasa_mensual / (1 - (1 + tasa_mensual) ** (-plazo_meses)))
 
-            st.progress(progreso)
+            saldo_restante = monto * ((1 + tasa_mensual) ** plazo_meses - (1 + tasa_mensual) ** cuotas_pagadas) / ((1 + tasa_mensual) ** plazo_meses - 1)
 
-            col1, col2, col3 = st.columns(3)
-            col1.metric("📅 Cuotas pagadas", f"{cuotas_pagadas} / {plazo_meses}")
-            col2.metric("💰 Monto pagado", f"${monto_pagado:,.2f}")
-            col3.metric("🧾 Saldo restante", f"${saldo:,.2f}")
-
-            st.write(f"💵 Monto total del crédito: ${monto_total:,.2f}")
-            st.write(f"📊 Tasa de interés anual: {tasa_interes:.2f}%")
-            st.write(f"💸 Cuota mensual fija: ${cuota_mensual:,.2f}")
-
-            # Botón para registrar pago
-            if st.button(f"Registrar pago {credito['nombre']}", key=credito["id"]):
-                if cuotas_pagadas < plazo_meses:
-                    update_credito(
-                        credito["id"],
-                        {"cuotas_pagadas": cuotas_pagadas + 1}
-                    )
-                    insertar_transaccion(
-                        st.session_state["user"]["id"],
-                        "Crédito",
-                        credito["nombre"],
-                        cuota_mensual,
-                        date.today()
-                    )
-                    st.success("✅ Pago registrado")
-                    st.rerun()
-                else:
-                    st.warning("⚠️ Este crédito ya está totalmente pagado.")
+            st.write(f"💰 Monto del crédito: ${monto:,.0f}")
+            st.write(f"📅 Plazo: {plazo_meses} meses")
+            st.write(f"📈 Tasa anual: {tasa_anual:.2f}%")
+            st.write(f"💳 Cuota mensual: ${cuota:,.2f}")
+            st.write(f"📉 Saldo restante: ${saldo_restante:,.2f}")
+            st.write(f"✅ Cuotas pagadas: {cuotas_pagadas}")
     else:
         st.info("No tienes créditos registrados.")
+
 
     # ==============================
     # TAB 3: HISTORIAL COMPLETO
