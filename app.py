@@ -129,7 +129,7 @@ user_id = st.session_state["user"]["id"]
 
 st.title("💰 Panel Financiero Personal")
 
-tab1, tab2, tab3 = st.tabs(["📊 Dashboard", "🎯 Metas de Ahorro", "⚙️ Configuración"])
+tab0, tab1, tab2, tab3, tab4= st.tabs(["📊 Dashboard", "💸 Transacciones", "💳 Créditos" , "🎯 Metas de Ahorro", "⚙️ Configuración"])
 
 # ===============================
 # 📊 Tab: Dashboard
