@@ -160,7 +160,7 @@ with tab1:
 # ============================
 # 3. Créditos
 # ============================
-with tabs[2]:
+with tab2:
     st.header("💳 Créditos")
 
     # Formulario para nuevo crédito
@@ -217,7 +217,7 @@ with tabs[2]:
 # 🎯 Tab: Metas de Ahorro
 # ===============================
 
-with tab2:
+with tab3:
     st.header("Tus Metas de Ahorro")
 
     metas = obtener_metas(user_id)
@@ -279,7 +279,7 @@ with tab2:
 # ⚙️ Tab: Configuración
 # ===============================
 
-with tab3:
+with tab4:
     st.header("Configuración y Herramientas")
 
     st.markdown("Aquí podrás personalizar tu experiencia, exportar datos o activar funciones avanzadas.")
@@ -344,7 +344,7 @@ def simulador_credito(monto, tasa_anual, cuotas):
 # 🧮 Simulador de crédito (opcional)
 # ===============================
 
-with tab3:
+with tab4:
     st.subheader("🧮 Simulador de Crédito")
 
     monto_credito = st.number_input("Monto del crédito", min_value=0.0, step=100.0)
