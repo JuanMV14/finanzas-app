@@ -3,7 +3,6 @@ supabase
 python-dotenv
 pandas
 numpy
-xlsxwriter
-matplotlib
 altair
 openpyxl
+xlsxwriter
