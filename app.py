@@ -5,6 +5,7 @@ import os
 from queries import registrar_pago, update_credito, insertar_transaccion, insertar_credito, borrar_transaccion, obtener_transacciones, obtener_creditos
 from utils import login, signup, logout
 from datetime import date
+from collections import defaultdict
 
 # Cargar variables de entorno
 load_dotenv()
@@ -45,78 +46,104 @@ else:
 
     # Contenido principal
     tabs = st.tabs(["Transacciones", "Créditos", "Historial"])
-# ==============================
-# TAB 1: TRANSACCIONES
-# ==============================
-with tabs[0]:
-    st.header("📊 Transacciones")
 
-    tipo = st.selectbox("Tipo", ["Ingreso", "Gasto", "Crédito"])
+    # ==============================
+    # TAB 1: TRANSACCIONES
+    # ==============================
+    with tabs[0]:
+        st.header("📊 Transacciones")
 
-    categorias = {
-        "Ingreso": ["Salario", "Comisiones", "Ventas", "Otros"],
-        "Gasto": ["Comida", "Gasolina", "Pago TC", "Servicios Públicos", "Ocio", "Entretenimiento", "Otros"],
-        "Crédito": ["Otros"]
-    }
+        tipo = st.selectbox("Tipo", ["Ingreso", "Gasto", "Crédito"])
 
-    categoria_seleccionada = st.selectbox("Categoría", categorias[tipo])
-    categoria_personalizada = ""
-    if categoria_seleccionada == "Otros":
-        categoria_personalizada = st.text_input("Especifica la categoría")
-
-    categoria_final = categoria_personalizada if categoria_seleccionada == "Otros" else categoria_seleccionada
-
-    with st.form("nueva_transaccion"):
-        monto = st.number_input("Monto", min_value=0.01)
-        fecha = st.date_input("Fecha")
-        submitted = st.form_submit_button("Guardar")
-
-        if submitted:
-            resp = insertar_transaccion(
-                st.session_state["user"]["id"], tipo, categoria_final, monto, fecha
-            )
-            if resp.data:
-                st.success("Transacción guardada ✅")
-                st.rerun()
-            else:
-                st.error("Error al guardar la transacción")
-
-    # 🔍 Visualización de resumen por categoría y tipo
-    from collections import defaultdict
-
-    trans = obtener_transacciones(st.session_state["user"]["id"])
-
-    if trans:
-        st.subheader("📊 Resumen por categoría y tipo")
-
-        resumen = defaultdict(float)
-        for t in trans:
-            clave = (t["tipo"], t["categoria"])
-            resumen[clave] += float(t["monto"])
-
-        total_general = sum(resumen.values())
-
-        colores = {
-            "Ingreso": "green",
-            "Gasto": "red",
-            "Crédito": "orange"
+        categorias = {
+            "Ingreso": ["Salario", "Comisiones", "Ventas", "Otros"],
+            "Gasto": ["Comida", "Gasolina", "Pago TC", "Servicios Públicos", "Ocio", "Entretenimiento", "Otros"],
+            "Crédito": ["Otros"]
         }
 
-        for (tipo, categoria), monto in resumen.items():
-            porcentaje = monto / total_general if total_general > 0 else 0
-            st.markdown(f"**{categoria}** ({tipo})")
+        categoria_seleccionada = st.selectbox("Categoría", categorias[tipo])
+        categoria_personalizada = ""
+        if categoria_seleccionada == "Otros":
+            categoria_personalizada = st.text_input("Especifica la categoría")
+
+        categoria_final = categoria_personalizada if categoria_seleccionada == "Otros" else categoria_seleccionada
+
+        with st.form("nueva_transaccion"):
+            monto = st.number_input("Monto", min_value=0.01)
+            fecha = st.date_input("Fecha")
+            submitted = st.form_submit_button("Guardar")
+
+            if submitted:
+                resp = insertar_transaccion(
+                    st.session_state["user"]["id"], tipo, categoria_final, monto, fecha
+                )
+                if resp.data:
+                    st.success("Transacción guardada ✅")
+                    st.rerun()
+                else:
+                    st.error("Error al guardar la transacción")
+
+        # 🔍 Visualización de resumen por categoría y tipo
+        trans = obtener_transacciones(st.session_state["user"]["id"])
+
+        if trans:
+            st.subheader("📊 Resumen por categoría y tipo")
+
+            resumen = defaultdict(float)
+            for t in trans:
+                clave = (t["tipo"], t["categoria"])
+                resumen[clave] += float(t["monto"])
+
+            total_ingresos = sum(monto for (tipo, _), monto in resumen.items() if tipo == "Ingreso")
+            total_gastos = sum(monto for (tipo, _), monto in resumen.items() if tipo == "Gasto")
+            total_creditos = sum(monto for (tipo, _), monto in resumen.items() if tipo == "Crédito")
+            total_general = total_ingresos + total_gastos + total_creditos
+
+            porcentaje_ingresos = total_ingresos / total_general if total_general > 0 else 0
+            porcentaje_gastos = total_gastos / total_general if total_general > 0 else 0
+            porcentaje_creditos = total_creditos / total_general if total_general > 0 else 0
+
+            colores = {
+                "Ingreso": "#4CAF50",
+                "Gasto": "#F44336",
+                "Crédito": "#2196F3"
+            }
+
+            # 🔷 Encabezado con barra progresiva
+            st.markdown("### Resumen financiero")
             st.markdown(
                 f"""
-                <div style="background-color:#eee;border-radius:8px;margin-bottom:8px;">
-                    <div style="width:{porcentaje*100:.2f}%;background-color:{colores[tipo]};padding:6px 0;border-radius:8px;text-align:center;color:black;">
-                        ${monto:,.2f}
+                <div style="display:flex;height:40px;border-radius:8px;overflow:hidden;margin-bottom:16px;">
+                    <div style="width:{porcentaje_ingresos*100:.2f}%;background-color:{colores['Ingreso']};text-align:center;color:black;line-height:40px;">
+                        Ingresos: ${total_ingresos:,.2f}
+                    </div>
+                    <div style="width:{porcentaje_gastos*100:.2f}%;background-color:{colores['Gasto']};text-align:center;color:black;line-height:40px;">
+                        Gastos: ${total_gastos:,.2f}
+                    </div>
+                    <div style="width:{porcentaje_creditos*100:.2f}%;background-color:{colores['Crédito']};text-align:center;color:black;line-height:40px;">
+                        Créditos: ${total_creditos:,.2f}
                     </div>
                 </div>
                 """,
                 unsafe_allow_html=True
             )
-    else:
-        st.info("No hay transacciones registradas.")
+
+            # 🔸 Barras por categoría
+            for (tipo, categoria), monto in resumen.items():
+                porcentaje = monto / total_general if total_general > 0 else 0
+                st.markdown(f"**{categoria}** ({tipo})")
+                st.markdown(
+                    f"""
+                    <div style="background-color:#eee;border-radius:8px;margin-bottom:8px;">
+                        <div style="width:{porcentaje*100:.2f}%;background-color:{colores[tipo]};padding:6px 0;border-radius:8px;text-align:center;color:black;">
+                            ${monto:,.2f}
+                        </div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+        else:
+            st.info("No hay transacciones registradas.")
 
     # ==============================
     # TAB 2: CRÉDITOS
