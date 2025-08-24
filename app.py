@@ -63,7 +63,7 @@ def obtener_transacciones(user_id: str) -> list:
 
 def obtener_metas(user_id):
     try:
-        res = supabase.from("metas").select("*").eq("user_id", user_id).execute()
+        res = supabase.table("metas").select("*").eq("user_id", user_id).execute()
         return res.data or []
     except Exception:
         return []
@@ -78,14 +78,14 @@ def crear_meta(user_id, nombre, monto):
             "ahorrado": 0,
             "creada_en": datetime.utcnow().isoformat()
         }
-        supabase.from("metas").insert(nueva_meta).execute()
+        supabase.table("metas").insert(nueva_meta).execute()
         return True
     except Exception:
         return False
 
 def actualizar_ahorro(meta_id, nuevo_valor):
     try:
-        supabase.from("metas").update({"ahorrado": nuevo_valor}).eq("id", meta_id).execute()
+        supabase.table("metas").update({"ahorrado": nuevo_valor}).eq("id", meta_id).execute()
         return True
     except Exception:
         return False
