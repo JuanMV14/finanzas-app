@@ -110,73 +110,100 @@ with tabs[0]:
 # ==============================
 # TAB 2: TRANSACCIONES
 # ==============================
-with tabs[1]:
-    st.header("💸 Transacciones")
+with tabs[0]:
+    st.header("📊 Transacciones")
 
     with st.form("nueva_transaccion"):
         tipo = st.selectbox("Tipo", ["Ingreso", "Gasto"])
-        categoria = st.text_input("Categoría")
+
+        # Categorías dinámicas según tipo
+        if tipo == "Ingreso":
+            categorias = ["Sueldo", "Préstamo", "Comisión", "Otros"]
+        else:
+            categorias = ["Comida", "Ocio", "Gasolina", "Servicios Públicos", 
+                          "Entretenimiento", "Pago Crédito", "Pago TC", "Otros"]
+
+        categoria = st.selectbox("Categoría", categorias)
+
+        # Campo extra si selecciona "Otros"
+        if categoria == "Otros":
+            categoria = st.text_input("Especifica la categoría")
+
         monto = st.number_input("Monto", min_value=0.01)
-        fecha = st.date_input("Fecha", value=date.today())
+        fecha = st.date_input("Fecha")
+
         submitted = st.form_submit_button("Guardar")
         if submitted:
-            resp = insertar_transaccion(user_id, tipo, categoria, monto, fecha)
+            resp = insertar_transaccion(
+                st.session_state["user"]["id"], tipo, categoria, monto, fecha
+            )
             if resp.data:
-                st.success("✅ Transacción guardada")
+                st.success("Transacción guardada ✅")
                 st.rerun()
             else:
-                st.error("❌ Error al guardar")
+                st.error("Error al guardar la transacción")
 
-    trans = obtener_transacciones(user_id)
+    # Mostrar transacciones
+    trans = obtener_transacciones(st.session_state["user"]["id"])
     if trans:
-        st.subheader("Historial")
-        for t in trans:
-            col1, col2, col3, col4, col5 = st.columns(5)
-            col1.write(t["tipo"])
-            col2.write(t["categoria"])
-            col3.write(f"${t['monto']:,.2f}")
-            col4.write(t["fecha"])
-            if col5.button("🗑️", key=t["id"]):
-                borrar_transaccion(user_id, t["id"])
-                st.rerun()
+        st.subheader("Historial de transacciones")
+        st.dataframe(trans)  # Tabla bonita con todo
     else:
         st.info("No tienes transacciones registradas.")
 
-# ==============================
-# TAB 3: CRÉDITOS
-# ==============================
-with tabs[2]:
-    st.header("💳 Créditos")
+    # Gráfico histórico mejorado
+    if trans:
+        import pandas as pd
+        import plotly.express as px
 
-    with st.form("nuevo_credito"):
-        nombre = st.text_input("Nombre del crédito")
-        monto = st.number_input("Monto total", min_value=0.01)
-        tasa = st.number_input("Tasa interés (%)", min_value=0.0)
-        plazo = st.number_input("Plazo (meses)", min_value=1, step=1)
-        cuotas_pagadas = st.number_input("Cuotas pagadas", min_value=0, step=1)
-        cuota_mensual = st.number_input("Cuota mensual", min_value=0.01)
-        submitted = st.form_submit_button("Guardar")
+        df = pd.DataFrame(trans)
+        df["fecha"] = pd.to_datetime(df["fecha"])
+        df["mes"] = df["fecha"].dt.to_period("M").astype(str)
+
+        resumen = df.groupby(["mes", "tipo"])["monto"].sum().reset_index()
+
+        fig = px.line(resumen, x="mes", y="monto", color="tipo", markers=True,
+                      title="Evolución de Ingresos y Gastos")
+        st.plotly_chart(fig, use_container_width=True)
+
+
+# ==============================
+# TAB 3: METAS DE AHORRO
+# ==============================
+with st.tab("Metas"):
+    st.header("🎯 Metas de ahorro")
+
+    # Formulario para nueva meta
+    with st.form("nueva_meta"):
+        nombre = st.text_input("Nombre de la meta")
+        monto = st.number_input("Monto objetivo", min_value=0.01)
+        ahorrado = st.number_input("Monto ahorrado inicial", min_value=0.0)
+        submitted = st.form_submit_button("Guardar meta")
         if submitted:
-            resp = insertar_credito(user_id, nombre, monto, tasa, plazo, cuotas_pagadas, cuota_mensual)
-            if resp.data:
-                st.success("✅ Crédito guardado")
-                st.rerun()
-            else:
-                st.error("❌ Error al guardar")
+            supabase.table("metas").insert({
+                "user_id": st.session_state["user"]["id"],
+                "nombre": nombre,
+                "monto": monto,
+                "ahorrado": ahorrado
+            }).execute()
+            st.success("Meta guardada ✅")
+            st.rerun()
 
-    creditos = obtener_creditos(user_id)
-    if creditos:
-        for c in creditos:
-            st.subheader(c["nombre"])
-
-            progreso = c["cuotas_pagadas"] / c["plazo_meses"]
+    # Mostrar metas existentes
+    metas = supabase.table("metas").select("*").eq("user_id", st.session_state["user"]["id"]).execute().data
+    if metas:
+        for m in metas:
+            st.subheader(f"🎯 {m['nombre']}")
+            progreso = m["ahorrado"] / m["monto"]
             st.progress(progreso)
-            st.write(f"📊 Pagadas: {c['cuotas_pagadas']} de {c['plazo_meses']}")
-            st.write(f"💰 Cuota mensual: ${c['cuota_mensual']:,.2f}")
+            st.write(f"💰 Ahorrado: {m['ahorrado']} / {m['monto']}")
 
-            if st.button(f"Registrar pago ➕", key=f"pago_{c['id']}"):
-                registrar_pago(c["id"], c["cuota_mensual"], user_id)
-                st.success("✅ Pago registrado")
+            # Botón para aumentar ahorro
+            extra = st.number_input(f"Agregar ahorro a {m['nombre']}", min_value=0.0, key=f"extra_{m['id']}")
+            if st.button(f"➕ Aumentar ahorro {m['nombre']}", key=f"btn_{m['id']}"):
+                nuevo = m["ahorrado"] + extra
+                supabase.table("metas").update({"ahorrado": nuevo}).eq("id", m["id"]).execute()
+                st.success("✅ Ahorro actualizado")
                 st.rerun()
     else:
-        st.info("No tienes créditos registrados.")
+        st.info("No tienes metas registradas.")
