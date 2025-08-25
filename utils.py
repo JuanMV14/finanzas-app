@@ -1,48 +1,41 @@
-# ============================
-# utils.py - Manejo de usuarios
-# ============================
-
 import streamlit as st
+from queries import supabase
 
-def login(supabase, email, password):
-    """Iniciar sesión de usuario."""
+def _extract_user_from_auth_response(auth_resp):
     try:
-        res = supabase.auth.sign_in_with_password({
-            "email": email,
-            "password": password
-        })
-        if res and getattr(res, "user", None):
-            st.session_state["user"] = {
-                "id": res.user.id,
-                "email": res.user.email
-            }
-            st.success("Inicio de sesión exitoso ✅")
+        user_obj = getattr(auth_resp, "user", None)
+        if user_obj:
+            uid = getattr(user_obj, "id", None)
+            email = getattr(user_obj, "email", None) or getattr(user_obj, "user_metadata", {}).get("email")
+            if uid:
+                return {"id": str(uid), "email": email}
+    except Exception:
+        pass
+    return None
+
+def login(email, password):
+    try:
+        resp = supabase.auth.sign_in_with_password({"email": email, "password": password})
+        user = _extract_user_from_auth_response(resp)
+        if user:
+            st.session_state["user"] = user
             st.rerun()
         else:
-            st.error("Correo o contraseña incorrectos ❌")
+            st.error("No se pudo iniciar sesión.")
     except Exception as e:
-        st.error(f"Error en login: {e}")
+        st.error(f"Error: {e}")
 
-def signup(supabase, email, password):
-    """Registrar un nuevo usuario."""
+def signup(email, password):
     try:
-        res = supabase.auth.sign_up({
-            "email": email,
-            "password": password
-        })
-        if res and getattr(res, "user", None):
-            st.success("Cuenta creada ✅. Ahora inicia sesión.")
-        else:
-            st.error("No se pudo registrar el usuario ❌")
+        supabase.auth.sign_up({"email": email, "password": password})
+        st.success("Cuenta creada. Revisa tu correo para confirmar.")
     except Exception as e:
-        st.error(f"Error en registro: {e}")
+        st.error(f"Error: {e}")
 
-def logout(supabase):
-    """Cerrar sesión del usuario actual."""
+def logout():
     try:
         supabase.auth.sign_out()
-        st.session_state["user"] = None
-        st.success("Sesión cerrada ✅")
-        st.rerun()
-    except Exception as e:
-        st.error(f"Error al cerrar sesión: {e}")
+    except Exception:
+        pass
+    st.session_state["user"] = None
+    st.rerun()
