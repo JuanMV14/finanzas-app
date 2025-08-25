@@ -113,6 +113,35 @@ with tabs[0]:
         col3.metric("Balance", f"${balance:,.2f}")
         col4.metric("Créditos", f"${total_creditos:,.2f}")
 
+        # ==========================
+        # GRÁFICO DE INGRESOS VS GASTOS
+        # ==========================
+        df["fecha"] = pd.to_datetime(df["fecha"])
+        df["mes"] = df["fecha"].dt.to_period("M").astype(str)
+        resumen = df.groupby(["mes", "tipo"])["monto"].sum().reset_index()
+
+        import plotly.express as px
+        fig = px.bar(
+            resumen,
+            x="mes",
+            y="monto",
+            color="tipo",
+            barmode="group",
+            title="Ingresos vs Gastos por Mes",
+        )
+
+        # Ajustar grosor de las barras
+        fig.update_traces(marker_line_width=0, width=0.35)  # barras delgadas
+
+        fig.update_layout(
+            xaxis_title="Mes",
+            yaxis_title="Monto",
+            legend_title="Tipo",
+            bargap=0.3  # espacio entre grupos de barras
+        )
+
+        st.plotly_chart(fig, use_container_width=True)
+
     else:
         st.info("No hay transacciones aún.")
 
