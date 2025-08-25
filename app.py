@@ -128,41 +128,42 @@ with tabs[1]:
     with st.form("nueva_transaccion", clear_on_submit=True):
         tipo = st.selectbox("Tipo", ["Ingreso", "Gasto"], key="tipo")
 
-        # Listas de categorías
-        categorias_ingreso = ["Sueldo", "Préstamo", "Comisión", "Otros"]
-        categorias_gasto = ["Comida", "Ocio", "Gasolina", "Servicios Públicos",
-                            "Entretenimiento", "Pago Crédito", "Pago TC", "Otros"]
+        # Definir categorías
+        categorias = {
+            "Ingreso": ["Sueldo", "Préstamo", "Comisión", "Otros"],
+            "Gasto": ["Comida", "Ocio", "Gasolina", "Servicios Públicos",
+                      "Entretenimiento", "Pago Crédito", "Pago TC", "Otros"]
+        }
 
-        # Dependiendo del tipo mostramos la lista
-        if tipo == "Ingreso":
-            categorias = categorias_ingreso
-        else:
-            categorias = categorias_gasto
+        categoria_seleccionada = st.selectbox(
+            "Categoría", 
+            categorias[tipo], 
+            key=f"categoria_{tipo}"
+        )
 
-        categoria_seleccionada = st.selectbox("Categoría", categorias, key=f"cat_{tipo}")
-
-        # Si eligió "Otros", pedimos texto personalizado
+        # Si eligió "Otros", habilitamos el input de texto
         if categoria_seleccionada == "Otros":
-            categoria = st.text_input("Especifica la categoría personalizada", key=f"otro_{tipo}")
+            categoria_final = st.text_input("Especifica la categoría personalizada", key=f"otro_{tipo}")
         else:
-            categoria = categoria_seleccionada
+            categoria_final = categoria_seleccionada
 
         monto = st.number_input("Monto", min_value=0.01, key="monto")
         fecha = st.date_input("Fecha", key="fecha")
 
         submitted = st.form_submit_button("Guardar")
         if submitted:
-            if categoria.strip() == "":
+            if categoria_final.strip() == "":
                 st.error("⚠️ Debes escribir un nombre de categoría si seleccionaste 'Otros'")
             else:
                 resp = insertar_transaccion(
-                    st.session_state["user"]["id"], tipo, categoria, monto, fecha
+                    st.session_state["user"]["id"], tipo, categoria_final, monto, fecha
                 )
                 if resp.data:
                     st.success("✅ Transacción guardada correctamente")
                     st.rerun()
                 else:
                     st.error("❌ Error al guardar la transacción")
+
 
 # ==============================
 # TAB 3: HISTORIAL (nuevo)
