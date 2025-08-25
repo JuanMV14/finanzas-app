@@ -125,23 +125,23 @@ with tabs[0]:
 with tabs[1]:
     st.header("📊 Registrar Transacciones")
 
-    with st.form("nueva_transaccion"):
+    with st.form("nueva_transaccion", clear_on_submit=True):
         tipo = st.selectbox("Tipo", ["Ingreso", "Gasto"], key="tipo_tx")
 
-        # Definir listas de categorías separadas
+        # Definir listas
         categorias_ingreso = ["Sueldo", "Préstamo", "Comisión", "Otros"]
         categorias_gasto = ["Comida", "Ocio", "Gasolina", "Servicios Públicos",
                             "Entretenimiento", "Pago Crédito", "Pago TC", "Otros"]
 
-        # Mostrar categorías según tipo
+        # Mostrar selectbox según tipo
         if tipo == "Ingreso":
-            categoria_seleccionada = st.selectbox("Categoría", categorias_ingreso, key="cat_ing")
+            categoria_seleccionada = st.selectbox("Categoría", categorias_ingreso, key="cat_ingreso")
         else:
-            categoria_seleccionada = st.selectbox("Categoría", categorias_gasto, key="cat_gas")
+            categoria_seleccionada = st.selectbox("Categoría", categorias_gasto, key="cat_gasto")
 
-        # Si elige "Otros", campo de texto
+        # Si eligió "Otros" → pedir texto personalizado
         if categoria_seleccionada == "Otros":
-            categoria = st.text_input("Especifica la categoría personalizada", key="cat_otro")
+            categoria = st.text_input("Especifica la categoría personalizada", key=f"cat_otro_{tipo}")
         else:
             categoria = categoria_seleccionada
 
@@ -151,7 +151,7 @@ with tabs[1]:
         submitted = st.form_submit_button("Guardar")
         if submitted:
             if not categoria or categoria.strip() == "":
-                st.error("Debes especificar una categoría válida")
+                st.error("⚠️ Debes escribir un nombre de categoría si seleccionaste 'Otros'")
             else:
                 resp = insertar_transaccion(
                     st.session_state["user"]["id"], tipo, categoria, monto, fecha
@@ -161,7 +161,6 @@ with tabs[1]:
                     st.rerun()
                 else:
                     st.error("❌ Error al guardar la transacción")
-
 
 # ==============================
 # TAB 3: HISTORIAL (nuevo)
