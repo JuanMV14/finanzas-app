@@ -120,6 +120,31 @@ with tabs[0]:
         st.info("No hay transacciones aún. Agrega algunas en el tab 💸 Transacciones.")
 
 # ==============================
+# BALANCE NETO (arriba del resumen por categoría)
+# ==============================
+st.subheader("📊 Balance Neto")
+
+if not trans:
+    st.info("No hay transacciones aún.")
+else:
+    total_ingresos = ingresos["monto"].sum() if not ingresos.empty else 0
+    total_gastos = gastos["monto"].sum() if not gastos.empty else 0
+    balance = total_ingresos - total_gastos
+
+    color = "#2a9d8f" if balance >= 0 else "#e63946"
+    texto = "✅ Superávit" if balance >= 0 else "⚠️ Déficit"
+
+    # Calcular porcentaje de ahorro
+    porcentaje = (balance / total_ingresos * 100) if total_ingresos > 0 and balance > 0 else 0
+
+    st.markdown(f"""
+    <div style='background:{color}; padding:20px; border-radius:15px; text-align:center; color:white; font-size:22px; font-weight:bold;'>
+        {texto}: ${balance:,.2f} <br>
+        {'💾 Ahorro: ' + str(round(porcentaje,2)) + '%' if balance > 0 else ''}
+    </div>
+    """, unsafe_allow_html=True)
+    
+# ==============================
 # RESUMEN POR CATEGORÍA (2 COLUMNAS)
 # ==============================
 st.subheader("📊 Resumen por Categoría")
@@ -188,32 +213,6 @@ if trans:
 
 else:
     st.info("No hay transacciones aún.")
-
-# ==============================
-# BALANCE NETO (arriba del resumen por categoría)
-# ==============================
-st.subheader("📊 Balance Neto")
-
-if not trans:
-    st.info("No hay transacciones aún.")
-else:
-    total_ingresos = ingresos["monto"].sum() if not ingresos.empty else 0
-    total_gastos = gastos["monto"].sum() if not gastos.empty else 0
-    balance = total_ingresos - total_gastos
-
-    color = "#2a9d8f" if balance >= 0 else "#e63946"
-    texto = "✅ Superávit" if balance >= 0 else "⚠️ Déficit"
-
-    # Calcular porcentaje de ahorro
-    porcentaje = (balance / total_ingresos * 100) if total_ingresos > 0 and balance > 0 else 0
-
-    st.markdown(f"""
-    <div style='background:{color}; padding:20px; border-radius:15px; text-align:center; color:white; font-size:22px; font-weight:bold;'>
-        {texto}: ${balance:,.2f} <br>
-        {'💾 Ahorro: ' + str(round(porcentaje,2)) + '%' if balance > 0 else ''}
-    </div>
-    """, unsafe_allow_html=True)
-
 
 # ==============================
 # TAB 2: TRANSACCIONES
