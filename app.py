@@ -119,18 +119,21 @@ with tabs[0]:
     else:
         st.info("No hay transacciones aún. Agrega algunas en el tab 💸 Transacciones.")
 
-    # ==============================
-    # RESUMEN POR CATEGORÍA (GASTOS E INGRESOS ORDENADOS)
-    # ==============================
-    st.subheader("📊 Resumen por Categoría")
+# ==============================
+# RESUMEN POR CATEGORÍA (2 COLUMNAS)
+# ==============================
+st.subheader("📊 Resumen por Categoría")
 
-    trans = obtener_transacciones(st.session_state["user"]["id"])
+trans = obtener_transacciones(st.session_state["user"]["id"])
 
-    if trans:
-        import pandas as pd
-        df = pd.DataFrame(trans)
+if trans:
+    import pandas as pd
+    df = pd.DataFrame(trans)
 
-        # ---------- GASTOS ----------
+    col_gastos, col_ingresos = st.columns(2)
+
+    # ---------- GASTOS ----------
+    with col_gastos:
         st.markdown("### 💸 Gastos por categoría")
         gastos = (
             df[df["tipo"] == "Gasto"]
@@ -144,15 +147,20 @@ with tabs[0]:
             for _, row in gastos.iterrows():
                 categoria = row["categoria"]
                 monto = row["monto"]
-                progreso = monto / max_gasto if max_gasto > 0 else 0
+                progreso = (monto / max_gasto) * 100 if max_gasto > 0 else 0
 
-                st.write(f"**{categoria}**")
-                st.progress(progreso)
-                st.write(f"💰 Total gastado: ${monto:,.2f}")
+                st.markdown(f"""
+                **{categoria}**  
+                <div style='background:#eee; border-radius:10px; height:20px;'>
+                    <div style='width:{progreso}%; background:#e63946; height:100%; border-radius:10px;'></div>
+                </div>
+                💰 Total gastado: ${monto:,.2f}
+                """, unsafe_allow_html=True)
         else:
             st.info("Aún no tienes gastos registrados por categoría.")
 
-        # ---------- INGRESOS ----------
+    # ---------- INGRESOS ----------
+    with col_ingresos:
         st.markdown("### 💵 Ingresos por categoría")
         ingresos = (
             df[df["tipo"] == "Ingreso"]
@@ -166,16 +174,41 @@ with tabs[0]:
             for _, row in ingresos.iterrows():
                 categoria = row["categoria"]
                 monto = row["monto"]
-                progreso = monto / max_ingreso if max_ingreso > 0 else 0
+                progreso = (monto / max_ingreso) * 100 if max_ingreso > 0 else 0
 
-                st.write(f"**{categoria}**")
-                st.progress(progreso)
-                st.write(f"💰 Total recibido: ${monto:,.2f}")
+                st.markdown(f"""
+                **{categoria}**  
+                <div style='background:#eee; border-radius:10px; height:20px;'>
+                    <div style='width:{progreso}%; background:#2a9d8f; height:100%; border-radius:10px;'></div>
+                </div>
+                💰 Total recibido: ${monto:,.2f}
+                """, unsafe_allow_html=True)
         else:
             st.info("Aún no tienes ingresos registrados por categoría.")
-    else:
-        st.info("No hay transacciones aún.")
 
+else:
+    st.info("No hay transacciones aún.")
+
+# ==============================
+# BALANCE NETO
+# ==============================
+st.subheader("📊 Balance Neto")
+
+if not trans:
+    st.info("No hay transacciones aún.")
+else:
+    total_ingresos = ingresos["monto"].sum() if not ingresos.empty else 0
+    total_gastos = gastos["monto"].sum() if not gastos.empty else 0
+    balance = total_ingresos - total_gastos
+
+    color = "#2a9d8f" if balance >= 0 else "#e63946"
+    texto = "✅ Superávit" if balance >= 0 else "⚠️ Déficit"
+
+    st.markdown(f"""
+    <div style='background:{color}; padding:20px; border-radius:15px; text-align:center; color:white; font-size:22px; font-weight:bold;'>
+        {texto}: ${balance:,.2f}
+    </div>
+    """, unsafe_allow_html=True)
 
 
 # ==============================
