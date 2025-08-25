@@ -64,7 +64,7 @@ user_id = user["id"]
 # ==============================
 # TABS
 # ==============================
-tabs = st.tabs(["📊 Dashboard", "💸 Transacciones", "💳 Créditos", "🎯 Metas de ahorro"])
+tabs = st.tabs(["📊 Dashboard", "💸 Transacciones", "📑 Historial", "💳 Créditos", "🎯 Metas"])
 
 # ==============================
 # TAB 1: DASHBOARD
@@ -76,28 +76,37 @@ with tabs[0]:
     creditos = obtener_creditos(user_id)
 
     if transacciones:
+        import pandas as pd
+        import plotly.graph_objs as go
+
         df = pd.DataFrame(transacciones)
         total_ingresos = df[df["tipo"] == "Ingreso"]["monto"].sum()
         total_gastos = df[df["tipo"] == "Gasto"]["monto"].sum()
         balance = total_ingresos - total_gastos
         total_creditos = sum([c["monto"] for c in creditos]) if creditos else 0
 
+        # Métricas principales
         col1, col2, col3, col4 = st.columns(4)
         col1.metric("Ingresos", f"${total_ingresos:,.2f}")
         col2.metric("Gastos", f"${total_gastos:,.2f}")
         col3.metric("Balance", f"${balance:,.2f}")
         col4.metric("Créditos", f"${total_creditos:,.2f}")
 
-        # Gráfico de ingresos vs gastos
+        # Preparar datos para gráfico
         df["fecha"] = pd.to_datetime(df["fecha"])
         df["periodo"] = df["fecha"].dt.to_period("M").astype(str)
         resumen = df.groupby(["periodo", "tipo"])["monto"].sum().reset_index()
 
+        # Gráfico de barras comparando ingresos vs gastos
         fig = go.Figure()
         for tipo in ["Ingreso", "Gasto"]:
             subset = resumen[resumen["tipo"] == tipo]
             if not subset.empty:
-                fig.add_trace(go.Bar(x=subset["periodo"], y=subset["monto"], name=tipo))
+                fig.add_trace(go.Bar(
+                    x=subset["periodo"],
+                    y=subset["monto"],
+                    name=tipo
+                ))
 
         fig.update_layout(
             barmode="group",
@@ -108,25 +117,25 @@ with tabs[0]:
         st.plotly_chart(fig, use_container_width=True)
 
     else:
-        st.info("No hay transacciones aún.")
+        st.info("No hay transacciones aún. Agrega algunas en el tab 💸 Transacciones.")
 
 # ==============================
-# TAB 2: TRANSACCIONES
+# TAB 2: TRANSACCIONES (solo formulario)
 # ==============================
 with tabs[1]:
-    st.header("📊 Transacciones")
+    st.header("💸 Nueva transacción")
 
     with st.form("nueva_transaccion"):
-        tipo = st.selectbox("Tipo", ["Ingreso", "Gasto"])
+        tipo = st.selectbox("Tipo", ["Ingreso", "Gasto"], key="tipo_trans")
 
-        # Categorías dinámicas según tipo
+        categorias_ingreso = ["Sueldo", "Préstamo", "Comisión", "Otros"]
+        categorias_gasto = ["Comida", "Ocio", "Gasolina", "Servicios Públicos", 
+                            "Entretenimiento", "Pago Crédito", "Pago TC", "Otros"]
+
         if tipo == "Ingreso":
-            categorias = ["Sueldo", "Préstamo", "Comisión", "Otros"]
+            categoria = st.selectbox("Categoría", categorias_ingreso, key="cat_ingreso")
         else:
-            categorias = ["Comida", "Ocio", "Gasolina", "Servicios Públicos", 
-                          "Entretenimiento", "Pago Crédito", "Pago TC", "Otros"]
-
-        categoria = st.selectbox("Categoría", categorias)
+            categoria = st.selectbox("Categoría", categorias_gasto, key="cat_gasto")
 
         # Campo extra si selecciona "Otros"
         if categoria == "Otros":
@@ -139,23 +148,42 @@ with tabs[1]:
         if submitted:
             resp = insertar_transaccion(user_id, tipo, categoria, monto, fecha)
             if resp.data:
-                st.success("Transacción guardada ✅")
+                st.success("✅ Transacción guardada")
                 st.rerun()
             else:
                 st.error("Error al guardar la transacción")
 
-    # Mostrar transacciones
+# ==============================
+# TAB 3: HISTORIAL (nuevo)
+# ==============================
+with tabs[2]:
+    st.header("📑 Historial de transacciones")
+
     trans = obtener_transacciones(user_id)
     if trans:
-        st.subheader("Historial de transacciones")
-        st.dataframe(trans)
+        import pandas as pd
+        import plotly.express as px
+
+        df = pd.DataFrame(trans)
+        df["fecha"] = pd.to_datetime(df["fecha"])
+        df = df.sort_values("fecha", ascending=False)
+
+        st.dataframe(df, use_container_width=True)
+
+        # Gráfico histórico
+        df["mes"] = df["fecha"].dt.to_period("M").astype(str)
+        resumen = df.groupby(["mes", "tipo"])["monto"].sum().reset_index()
+        fig = px.line(resumen, x="mes", y="monto", color="tipo", markers=True,
+                      title="Evolución de Ingresos y Gastos")
+        st.plotly_chart(fig, use_container_width=True)
     else:
         st.info("No tienes transacciones registradas.")
+
 
 # ==============================
 # TAB 3: CRÉDITOS
 # ==============================
-with tabs[2]:
+with tabs[3]:
     st.header("💳 Créditos")
 
     with st.form("nuevo_credito"):
@@ -193,7 +221,7 @@ with tabs[2]:
 # ==============================
 # TAB 4: METAS DE AHORRO
 # ==============================
-with tabs[3]:
+with tabs[4]:
     st.header("🎯 Metas de ahorro")
 
     with st.form("nueva_meta"):
