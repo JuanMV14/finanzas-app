@@ -10,6 +10,9 @@ from queries import (
     obtener_creditos,
     registrar_pago,
     update_credito,
+    insertar_meta,
+    obtener_metas,
+    actualizar_meta
 )
 from utils import login, signup, logout
 
@@ -61,7 +64,7 @@ user_id = user["id"]
 # ==============================
 # TABS
 # ==============================
-tabs = st.tabs(["📊 Dashboard", "💸 Transacciones", "💳 Créditos"])
+tabs = st.tabs(["📊 Dashboard", "💸 Transacciones", "💳 Créditos", "🎯 Metas de ahorro"])
 
 # ==============================
 # TAB 1: DASHBOARD
@@ -134,9 +137,7 @@ with tabs[1]:
 
         submitted = st.form_submit_button("Guardar")
         if submitted:
-            resp = insertar_transaccion(
-                st.session_state["user"]["id"], tipo, categoria, monto, fecha
-            )
+            resp = insertar_transaccion(user_id, tipo, categoria, monto, fecha)
             if resp.data:
                 st.success("Transacción guardada ✅")
                 st.rerun()
@@ -144,53 +145,68 @@ with tabs[1]:
                 st.error("Error al guardar la transacción")
 
     # Mostrar transacciones
-    trans = obtener_transacciones(st.session_state["user"]["id"])
+    trans = obtener_transacciones(user_id)
     if trans:
         st.subheader("Historial de transacciones")
-        st.dataframe(trans)  # Tabla bonita con todo
+        st.dataframe(trans)
     else:
         st.info("No tienes transacciones registradas.")
 
-    # Gráfico histórico mejorado
-    if trans:
-        import pandas as pd
-        import plotly.express as px
-
-        df = pd.DataFrame(trans)
-        df["fecha"] = pd.to_datetime(df["fecha"])
-        df["mes"] = df["fecha"].dt.to_period("M").astype(str)
-
-        resumen = df.groupby(["mes", "tipo"])["monto"].sum().reset_index()
-
-        fig = px.line(resumen, x="mes", y="monto", color="tipo", markers=True,
-                      title="Evolución de Ingresos y Gastos")
-        st.plotly_chart(fig, use_container_width=True)
-
-
 # ==============================
-# TAB 3: METAS DE AHORRO
+# TAB 3: CRÉDITOS
 # ==============================
 with tabs[2]:
+    st.header("💳 Créditos")
+
+    with st.form("nuevo_credito"):
+        nombre = st.text_input("Nombre del crédito")
+        monto = st.number_input("Monto", min_value=0.01)
+        tasa = st.number_input("Tasa de interés (%)", min_value=0.0)
+        plazo_meses = st.number_input("Plazo (meses)", min_value=1, step=1)
+        cuotas_pagadas = st.number_input("Cuotas pagadas", min_value=0, step=1)
+        cuota_mensual = st.number_input("Cuota mensual", min_value=0.01)
+        submitted = st.form_submit_button("Guardar crédito")
+        if submitted:
+            resp = insertar_credito(user_id, nombre, monto, tasa, plazo_meses, cuotas_pagadas, cuota_mensual)
+            if resp.data:
+                st.success("Crédito guardado ✅")
+                st.rerun()
+            else:
+                st.error("Error al guardar el crédito")
+
+    creditos = obtener_creditos(user_id)
+    if creditos:
+        for c in creditos:
+            st.subheader(f"📌 {c['nombre']}")
+            progreso = c["cuotas_pagadas"] / c["plazo_meses"]
+            st.progress(progreso)
+            st.write(f"Pagadas: {c['cuotas_pagadas']} / {c['plazo_meses']}")
+            st.write(f"💰 Cuota mensual: {c['cuota_mensual']:.2f}")
+
+            if st.button(f"Registrar pago ➕", key=c['id']):
+                registrar_pago(c['id'])
+                st.success("✅ Pago registrado correctamente")
+                st.rerun()
+    else:
+        st.info("No tienes créditos registrados.")
+
+# ==============================
+# TAB 4: METAS DE AHORRO
+# ==============================
+with tabs[3]:
     st.header("🎯 Metas de ahorro")
 
-    # Formulario para nueva meta
     with st.form("nueva_meta"):
         nombre = st.text_input("Nombre de la meta")
         monto = st.number_input("Monto objetivo", min_value=0.01)
         ahorrado = st.number_input("Monto ahorrado inicial", min_value=0.0)
         submitted = st.form_submit_button("Guardar meta")
         if submitted:
-            supabase.table("metas").insert({
-                "user_id": st.session_state["user"]["id"],
-                "nombre": nombre,
-                "monto": monto,
-                "ahorrado": ahorrado
-            }).execute()
+            insertar_meta(user_id, nombre, monto, ahorrado)
             st.success("Meta guardada ✅")
             st.rerun()
 
-    # Mostrar metas existentes
-    metas = supabase.table("metas").select("*").eq("user_id", st.session_state["user"]["id"]).execute().data
+    metas = obtener_metas(user_id)
     if metas:
         for m in metas:
             st.subheader(f"🎯 {m['nombre']}")
@@ -198,11 +214,9 @@ with tabs[2]:
             st.progress(progreso)
             st.write(f"💰 Ahorrado: {m['ahorrado']} / {m['monto']}")
 
-            # Botón para aumentar ahorro
             extra = st.number_input(f"Agregar ahorro a {m['nombre']}", min_value=0.0, key=f"extra_{m['id']}")
             if st.button(f"➕ Aumentar ahorro {m['nombre']}", key=f"btn_{m['id']}"):
-                nuevo = m["ahorrado"] + extra
-                supabase.table("metas").update({"ahorrado": nuevo}).eq("id", m["id"]).execute()
+                actualizar_meta(m["id"], m["ahorrado"] + extra)
                 st.success("✅ Ahorro actualizado")
                 st.rerun()
     else:
