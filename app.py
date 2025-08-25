@@ -125,35 +125,33 @@ with tabs[0]:
 with tabs[1]:
     st.header("💸 Registrar Transacciones")
 
+    # Selección de tipo primero (fuera del form)
+    tipo = st.radio("Selecciona el tipo de transacción:", ["Ingreso", "Gasto"], key="tipo_txn")
+
+    # Ahora mostramos las categorías según el tipo
+    if tipo == "Ingreso":
+        categorias = ["Sueldo", "Préstamo", "Comisión", "Otros"]
+    else:
+        categorias = ["Comida", "Ocio", "Gasolina", "Servicios Públicos",
+                      "Entretenimiento", "Pago Crédito", "Pago TC", "Otros"]
+
+    categoria = st.selectbox("Categoría", categorias, key="cat_select")
+
+    # Si elige "Otros", se activa un input adicional
+    if categoria == "Otros":
+        categoria_personalizada = st.text_input("Especifica la categoría personalizada", key="otro_cat")
+        if categoria_personalizada.strip() != "":
+            categoria = categoria_personalizada
+
+    # Formulario de transacción
     with st.form("nueva_transaccion", clear_on_submit=True):
-        tipo = st.selectbox("Tipo", ["Ingreso", "Gasto"], key="tipo_txn")
-
-        # Categorías según tipo (claves distintas)
-        if tipo == "Ingreso":
-            categoria = st.selectbox(
-                "Categoría",
-                ["Sueldo", "Préstamo", "Comisión", "Otros"],
-                key="cat_ingreso"
-            )
-        else:
-            categoria = st.selectbox(
-                "Categoría",
-                ["Comida", "Ocio", "Gasolina", "Servicios Públicos",
-                 "Entretenimiento", "Pago Crédito", "Pago TC", "Otros"],
-                key="cat_gasto"
-            )
-
-        # Campo extra si selecciona "Otros"
-        if categoria == "Otros":
-            categoria = st.text_input("Especifica la categoría personalizada", key="otro_cat")
-
         monto = st.number_input("Monto", min_value=0.01, key="monto_txn")
         fecha = st.date_input("Fecha", key="fecha_txn")
 
         submitted = st.form_submit_button("Guardar")
         if submitted:
             if categoria.strip() == "":
-                st.error("⚠️ Debes escribir un nombre de categoría si seleccionaste 'Otros'")
+                st.error("⚠️ Debes escribir una categoría si seleccionaste 'Otros'")
             else:
                 resp = insertar_transaccion(
                     st.session_state["user"]["id"], tipo, categoria, monto, fecha
