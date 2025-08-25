@@ -120,7 +120,7 @@ with tabs[0]:
         st.info("No hay transacciones aún. Agrega algunas en el tab 💸 Transacciones.")
 
     # ==============================
-    # RESUMEN POR CATEGORÍA
+    # RESUMEN POR CATEGORÍA (GASTOS E INGRESOS ORDENADOS)
     # ==============================
     st.subheader("📊 Resumen por Categoría")
 
@@ -130,23 +130,52 @@ with tabs[0]:
         import pandas as pd
         df = pd.DataFrame(trans)
 
-        # Agrupar por categoría (solo gastos para progresos)
-        gastos = df[df["tipo"] == "Gasto"].groupby("categoria")["monto"].sum().reset_index()
+        # ---------- GASTOS ----------
+        st.markdown("### 💸 Gastos por categoría")
+        gastos = (
+            df[df["tipo"] == "Gasto"]
+            .groupby("categoria")["monto"].sum()
+            .reset_index()
+            .sort_values(by="monto", ascending=False)
+        )
 
         if not gastos.empty:
-            max_gasto = gastos["monto"].max()  # Para normalizar las barras
+            max_gasto = gastos["monto"].max()
             for _, row in gastos.iterrows():
                 categoria = row["categoria"]
                 monto = row["monto"]
                 progreso = monto / max_gasto if max_gasto > 0 else 0
 
-                st.write(f"### {categoria}")
+                st.write(f"**{categoria}**")
                 st.progress(progreso)
                 st.write(f"💰 Total gastado: ${monto:,.2f}")
         else:
             st.info("Aún no tienes gastos registrados por categoría.")
+
+        # ---------- INGRESOS ----------
+        st.markdown("### 💵 Ingresos por categoría")
+        ingresos = (
+            df[df["tipo"] == "Ingreso"]
+            .groupby("categoria")["monto"].sum()
+            .reset_index()
+            .sort_values(by="monto", ascending=False)
+        )
+
+        if not ingresos.empty:
+            max_ingreso = ingresos["monto"].max()
+            for _, row in ingresos.iterrows():
+                categoria = row["categoria"]
+                monto = row["monto"]
+                progreso = monto / max_ingreso if max_ingreso > 0 else 0
+
+                st.write(f"**{categoria}**")
+                st.progress(progreso)
+                st.write(f"💰 Total recibido: ${monto:,.2f}")
+        else:
+            st.info("Aún no tienes ingresos registrados por categoría.")
     else:
         st.info("No hay transacciones aún.")
+
 
 
 # ==============================
