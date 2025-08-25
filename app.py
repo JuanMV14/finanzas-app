@@ -137,7 +137,7 @@ with tabs[0]:
             xaxis_title="Mes",
             yaxis_title="Monto",
             legend_title="Tipo",
-            bargap=0.7  # espacio entre grupos de barras
+            bargap=0.3  # espacio entre grupos de barras
         )
 
         st.plotly_chart(fig, use_container_width=True)
