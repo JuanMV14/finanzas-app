@@ -129,7 +129,6 @@ with tabs[1]:
     with st.form("nueva_transaccion"):
         tipo = st.selectbox("Tipo", ["Ingreso", "Gasto"])
 
-        # Categorías dinámicas
         if tipo == "Ingreso":
             categorias = ["Sueldo", "Préstamo", "Comisión", "Otros"]
         else:
@@ -137,8 +136,6 @@ with tabs[1]:
                           "Entretenimiento", "Pago Crédito", "Pago TC", "Otros"]
 
         categoria_sel = st.selectbox("Categoría", categorias)
-
-        # Si selecciona "Otros", pedir texto
         if categoria_sel == "Otros":
             categoria = st.text_input("Especifica la categoría")
         else:
@@ -159,9 +156,6 @@ with tabs[1]:
     # --- OBTENER TRANSACCIONES ---
     trans = obtener_transacciones(user_id)
 
-    # --- BALANCE NETO ARRIBA ---
-    st.subheader("📊 Balance Neto")
-
     if not trans:
         st.info("No hay transacciones aún.")
     else:
@@ -175,9 +169,10 @@ with tabs[1]:
         total_gastos = gastos["monto"].sum() if not gastos.empty else 0
         balance = total_ingresos - total_gastos
 
+        # --- BALANCE NETO ---
+        st.subheader("📊 Balance Neto")
         color = "#2a9d8f" if balance >= 0 else "#e63946"
         texto = "📈 Superávit" if balance >= 0 else "📉 Déficit"
-
         porcentaje = (balance / total_ingresos * 100) if total_ingresos > 0 and balance > 0 else 0
 
         st.markdown(f"""
@@ -189,7 +184,6 @@ with tabs[1]:
 
         # --- RESUMEN POR CATEGORÍAS ---
         st.subheader("📋 Resumen por Categorías")
-
         col1, col2 = st.columns(2)
 
         # Ingresos
@@ -197,9 +191,14 @@ with tabs[1]:
             st.markdown("### 💵 Ingresos")
             if not ingresos.empty:
                 resumen_ing = ingresos.groupby("categoria")["monto"].sum().reset_index()
-                for _, row in resumen_ing.iterrows():
-                    st.markdown(f"**{row['categoria']}**: ${row['monto']:,.2f}")
-                    st.progress(min(1.0, row["monto"] / total_ingresos if total_ingresos > 0 else 0))
+                fig_ing = go.Figure(go.Bar(
+                    x=resumen_ing["monto"],
+                    y=resumen_ing["categoria"],
+                    orientation="h",
+                    marker=dict(color="#2a9d8f")
+                ))
+                fig_ing.update_layout(title="Distribución de Ingresos", xaxis_title="Monto", yaxis_title="Categoría")
+                st.plotly_chart(fig_ing, use_container_width=True)
             else:
                 st.info("Sin ingresos registrados.")
 
@@ -208,9 +207,14 @@ with tabs[1]:
             st.markdown("### 💸 Gastos")
             if not gastos.empty:
                 resumen_gas = gastos.groupby("categoria")["monto"].sum().reset_index()
-                for _, row in resumen_gas.iterrows():
-                    st.markdown(f"**{row['categoria']}**: ${row['monto']:,.2f}")
-                    st.progress(min(1.0, row["monto"] / total_gastos if total_gastos > 0 else 0))
+                fig_gas = go.Figure(go.Bar(
+                    x=resumen_gas["monto"],
+                    y=resumen_gas["categoria"],
+                    orientation="h",
+                    marker=dict(color="#e63946")
+                ))
+                fig_gas.update_layout(title="Distribución de Gastos", xaxis_title="Monto", yaxis_title="Categoría")
+                st.plotly_chart(fig_gas, use_container_width=True)
             else:
                 st.info("Sin gastos registrados.")
 
