@@ -119,6 +119,36 @@ with tabs[0]:
     else:
         st.info("No hay transacciones aún. Agrega algunas en el tab 💸 Transacciones.")
 
+    # ==============================
+    # RESUMEN POR CATEGORÍA
+    # ==============================
+    st.subheader("📊 Resumen por Categoría")
+
+    trans = obtener_transacciones(st.session_state["user"]["id"])
+
+    if trans:
+        import pandas as pd
+        df = pd.DataFrame(trans)
+
+        # Agrupar por categoría (solo gastos para progresos)
+        gastos = df[df["tipo"] == "Gasto"].groupby("categoria")["monto"].sum().reset_index()
+
+        if not gastos.empty:
+            max_gasto = gastos["monto"].max()  # Para normalizar las barras
+            for _, row in gastos.iterrows():
+                categoria = row["categoria"]
+                monto = row["monto"]
+                progreso = monto / max_gasto if max_gasto > 0 else 0
+
+                st.write(f"### {categoria}")
+                st.progress(progreso)
+                st.write(f"💰 Total gastado: ${monto:,.2f}")
+        else:
+            st.info("Aún no tienes gastos registrados por categoría.")
+    else:
+        st.info("No hay transacciones aún.")
+
+
 # ==============================
 # TAB 2: TRANSACCIONES
 # ==============================
