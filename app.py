@@ -110,7 +110,7 @@ with tabs[0]:
 # ==============================
 # TAB 2: TRANSACCIONES
 # ==============================
-with tabs[0]:
+with tabs[1]:
     st.header("📊 Transacciones")
 
     with st.form("nueva_transaccion"):
