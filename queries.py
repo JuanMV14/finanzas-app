@@ -1,180 +1,62 @@
-# =====================================
-# queries.py - Funciones para Supabase
-# =====================================
+from supabase import create_client, Client
+import os
+from dotenv import load_dotenv
 
-import streamlit as st
+load_dotenv()
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# -----------------------------
+# -------------------------
 # TRANSACCIONES
-# -----------------------------
+# -------------------------
 def insertar_transaccion(user_id, tipo, categoria, monto, fecha):
-    """Insertar una nueva transacción en la tabla transacciones."""
-    try:
-        from app import supabase
-        res = supabase.table("transacciones").insert({
-            "user_id": user_id,
-            "tipo": tipo,
-            "categoria": categoria,
-            "monto": monto,
-            "fecha": str(fecha)
-        }).execute()
-        return getattr(res, "data", None)
-    except Exception as e:
-        st.error(f"Excepción al insertar transacción: {e}")
-        return None
+    return supabase.table("transacciones").insert({
+        "user_id": str(user_id),
+        "tipo": tipo,
+        "categoria": categoria,
+        "monto": float(monto),
+        "fecha": str(fecha),
+    }).execute()
+
+def borrar_transaccion(user_id, trans_id):
+    return supabase.table("transacciones").delete().eq("id", trans_id).eq("user_id", str(user_id)).execute()
 
 def obtener_transacciones(user_id):
-    """Obtener todas las transacciones de un usuario."""
-    try:
-        from app import supabase
-        res = supabase.table("transacciones") \
-                      .select("*") \
-                      .eq("user_id", user_id) \
-                      .order("fecha", desc=True) \
-                      .execute()
-        return getattr(res, "data", []) or []
-    except Exception as e:
-        st.error(f"Error al obtener transacciones: {e}")
-        return []
+    return supabase.table("transacciones").select("*").eq("user_id", str(user_id)).order("fecha", desc=True).execute().data
 
-def borrar_transaccion(transaccion_id):
-    """Eliminar una transacción por ID."""
-    try:
-        from app import supabase
-        res = supabase.table("transacciones") \
-                      .delete() \
-                      .eq("id", transaccion_id) \
-                      .execute()
-        return getattr(res, "data", []) or []
-    except Exception as e:
-        st.error(f"Error al borrar transacción: {e}")
-        return []
-
-# -----------------------------
-# CRÉDITOS
-# -----------------------------
-def insertar_credito(user_id, nombre, monto, plazo, tasa, cuota, dia_pago):
-    """Insertar un crédito en la tabla creditos."""
-    try:
-        from app import supabase
-        res = supabase.table("creditos").insert({
-            "user_id": user_id,
-            "nombre": nombre,
-            "monto": monto,
-            "plazo": plazo,
-            "tasa": tasa,
-            "cuota": cuota,
-            "dia_pago": dia_pago,
-            "cuotas_pagadas": 0
-        }).execute()
-        return getattr(res, "data", None)
-    except Exception as e:
-        st.error(f"Excepción al insertar crédito: {e}")
-        return None
+# -------------------------
+# CREDITOS
+# -------------------------
+def insertar_credito(user_id, nombre, monto, tasa, plazo_meses, cuotas_pagadas, cuota_mensual):
+    return supabase.table("credito").insert({
+        "user_id": str(user_id),
+        "nombre": nombre,
+        "monto": float(monto),
+        "tasa_interes": float(tasa),
+        "plazo_meses": int(plazo_meses),
+        "cuotas_pagadas": int(cuotas_pagadas),
+        "cuota_mensual": float(cuota_mensual),
+    }).execute()
 
 def obtener_creditos(user_id):
-    """Obtener todos los créditos de un usuario."""
-    try:
-        from app import supabase
-        res = supabase.table("creditos") \
-                      .select("*") \
-                      .eq("user_id", user_id) \
-                      .order("created_at", desc=True) \
-                      .execute()
-        return getattr(res, "data", []) or []
-    except Exception as e:
-        st.error(f"Error al obtener créditos: {e}")
-        return []
+    return supabase.table("credito").select("*").eq("user_id", str(user_id)).execute().data
 
-def update_credito(credito_id, campos):
-    """Actualizar campos de un crédito existente."""
-    try:
-        from app import supabase
-        res = supabase.table("creditos") \
-                      .update(campos) \
-                      .eq("id", credito_id) \
-                      .execute()
-        return getattr(res, "data", []) or []
-    except Exception as e:
-        st.error(f"Error al actualizar crédito: {e}")
-        return []
+def update_credito(credito_id, fields: dict):
+    return supabase.table("credito").update(fields).eq("id", credito_id).execute()
 
-def registrar_pago(credito_id, user_id, monto, fecha):
-    """Registrar un pago de un crédito: inserta un gasto y aumenta cuotas_pagadas."""
-    try:
-        from app import supabase
-        # Insertar pago como gasto
-        supabase.table("transacciones").insert({
-            "user_id": user_id,
-            "tipo": "Gasto",
-            "categoria": "Pago crédito",
-            "monto": monto,
-            "fecha": str(fecha)
-        }).execute()
+def registrar_pago(credito_id, monto, user_id):
+    # 1. Insertar el pago en transacciones
+    supabase.table("transacciones").insert({
+        "user_id": str(user_id),
+        "tipo": "Gasto",
+        "categoria": "Pago crédito",
+        "monto": float(monto),
+        "fecha": str(date.today())
+    }).execute()
 
-        # Actualizar cuotas_pagadas
-        res = supabase.table("creditos").select("cuotas_pagadas").eq("id", credito_id).single().execute()
-        actuales = (getattr(res, "data", {}) or {}).get("cuotas_pagadas", 0)
-        supabase.table("creditos").update({"cuotas_pagadas": (actuales or 0) + 1}).eq("id", credito_id).execute()
-        return True
-    except Exception as e:
-        st.error(f"Error al registrar pago: {e}")
-        return False
-
-# -----------------------------
-# METAS
-# -----------------------------
-def insertar_meta(user_id, nombre, monto, ahorrado=0):
-    """Insertar una meta de ahorro."""
-    try:
-        from app import supabase
-        res = supabase.table("metas").insert({
-            "user_id": user_id,
-            "nombre": nombre,
-            "monto": monto,
-            "ahorrado": ahorrado
-        }).execute()
-        return getattr(res, "data", None)
-    except Exception as e:
-        st.error(f"Excepción al insertar meta: {e}")
-        return None
-
-def obtener_metas(user_id):
-    """Obtener metas de un usuario."""
-    try:
-        from app import supabase
-        res = supabase.table("metas") \
-                      .select("*") \
-                      .eq("user_id", user_id) \
-                      .order("created_at", desc=True) \
-                      .execute()
-        return getattr(res, "data", []) or []
-    except Exception as e:
-        st.error(f"Error al obtener metas: {e}")
-        return []
-
-def update_meta(meta_id, campos):
-    """Actualizar una meta existente."""
-    try:
-        from app import supabase
-        res = supabase.table("metas") \
-                      .update(campos) \
-                      .eq("id", meta_id) \
-                      .execute()
-        return getattr(res, "data", []) or []
-    except Exception as e:
-        st.error(f"Error al actualizar meta: {e}")
-        return []
-
-def borrar_meta(meta_id):
-    """Eliminar una meta por ID."""
-    try:
-        from app import supabase
-        res = supabase.table("metas") \
-                      .delete() \
-                      .eq("id", meta_id) \
-                      .execute()
-        return getattr(res, "data", []) or []
-    except Exception as e:
-        st.error(f"Error al borrar meta: {e}")
-        return []
+    # 2. Actualizar cuotas pagadas
+    credito = supabase.table("credito").select("*").eq("id", credito_id).single().execute().data
+    if credito:
+        nuevas = credito["cuotas_pagadas"] + 1
+        return update_credito(credito_id, {"cuotas_pagadas": nuevas})
