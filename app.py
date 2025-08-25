@@ -170,7 +170,7 @@ with tabs[1]:
 # ==============================
 # TAB 3: METAS DE AHORRO
 # ==============================
-with st.tabs[2]:
+with tabs[2]:
     st.header("🎯 Metas de ahorro")
 
     # Formulario para nueva meta
