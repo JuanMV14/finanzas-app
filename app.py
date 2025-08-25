@@ -120,142 +120,99 @@ with tabs[0]:
         st.info("No hay transacciones aún. Agrega algunas en el tab 💸 Transacciones.")
 
 # ==============================
-# BALANCE NETO (arriba del resumen por categoría)
-# ==============================
-st.subheader("📊 Balance Neto")
-
-if not trans:
-    st.info("No hay transacciones aún.")
-else:
-    total_ingresos = ingresos["monto"].sum() if not ingresos.empty else 0
-    total_gastos = gastos["monto"].sum() if not gastos.empty else 0
-    balance = total_ingresos - total_gastos
-
-    color = "#2a9d8f" if balance >= 0 else "#e63946"
-    texto = "✅ Superávit" if balance >= 0 else "⚠️ Déficit"
-
-    # Calcular porcentaje de ahorro
-    porcentaje = (balance / total_ingresos * 100) if total_ingresos > 0 and balance > 0 else 0
-
-    st.markdown(f"""
-    <div style='background:{color}; padding:20px; border-radius:15px; text-align:center; color:white; font-size:22px; font-weight:bold;'>
-        {texto}: ${balance:,.2f} <br>
-        {'💾 Ahorro: ' + str(round(porcentaje,2)) + '%' if balance > 0 else ''}
-    </div>
-    """, unsafe_allow_html=True)
-    
-# ==============================
-# RESUMEN POR CATEGORÍA (2 COLUMNAS)
-# ==============================
-st.subheader("📊 Resumen por Categoría")
-
-trans = obtener_transacciones(st.session_state["user"]["id"])
-
-if trans:
-    import pandas as pd
-    df = pd.DataFrame(trans)
-
-    col_gastos, col_ingresos = st.columns(2)
-
-    # ---------- GASTOS ----------
-    with col_gastos:
-        st.markdown("### 💸 Gastos por categoría")
-        gastos = (
-            df[df["tipo"] == "Gasto"]
-            .groupby("categoria")["monto"].sum()
-            .reset_index()
-            .sort_values(by="monto", ascending=False)
-        )
-
-        if not gastos.empty:
-            max_gasto = gastos["monto"].max()
-            for _, row in gastos.iterrows():
-                categoria = row["categoria"]
-                monto = row["monto"]
-                progreso = (monto / max_gasto) * 100 if max_gasto > 0 else 0
-
-                st.markdown(f"""
-                **{categoria}**  
-                <div style='background:#eee; border-radius:10px; height:20px;'>
-                    <div style='width:{progreso}%; background:#e63946; height:100%; border-radius:10px;'></div>
-                </div>
-                💰 Total gastado: ${monto:,.2f}
-                """, unsafe_allow_html=True)
-        else:
-            st.info("Aún no tienes gastos registrados por categoría.")
-
-    # ---------- INGRESOS ----------
-    with col_ingresos:
-        st.markdown("### 💵 Ingresos por categoría")
-        ingresos = (
-            df[df["tipo"] == "Ingreso"]
-            .groupby("categoria")["monto"].sum()
-            .reset_index()
-            .sort_values(by="monto", ascending=False)
-        )
-
-        if not ingresos.empty:
-            max_ingreso = ingresos["monto"].max()
-            for _, row in ingresos.iterrows():
-                categoria = row["categoria"]
-                monto = row["monto"]
-                progreso = (monto / max_ingreso) * 100 if max_ingreso > 0 else 0
-
-                st.markdown(f"""
-                **{categoria}**  
-                <div style='background:#eee; border-radius:10px; height:20px;'>
-                    <div style='width:{progreso}%; background:#2a9d8f; height:100%; border-radius:10px;'></div>
-                </div>
-                💰 Total recibido: ${monto:,.2f}
-                """, unsafe_allow_html=True)
-        else:
-            st.info("Aún no tienes ingresos registrados por categoría.")
-
-else:
-    st.info("No hay transacciones aún.")
-
-# ==============================
 # TAB 2: TRANSACCIONES
 # ==============================
 with tabs[1]:
-    st.header("💸 Registrar Transacciones")
+    st.header("📊 Transacciones")
 
-    # Selección de tipo primero (fuera del form)
-    tipo = st.radio("Selecciona el tipo de transacción:", ["Ingreso", "Gasto"], key="tipo_txn")
+    # --- FORMULARIO ---
+    with st.form("nueva_transaccion"):
+        tipo = st.selectbox("Tipo", ["Ingreso", "Gasto"])
 
-    # Ahora mostramos las categorías según el tipo
-    if tipo == "Ingreso":
-        categorias = ["Sueldo", "Préstamo", "Comisión", "Otros"]
-    else:
-        categorias = ["Comida", "Ocio", "Gasolina", "Servicios Públicos",
-                      "Entretenimiento", "Pago Crédito", "Pago TC", "Otros"]
+        # Categorías dinámicas
+        if tipo == "Ingreso":
+            categorias = ["Sueldo", "Préstamo", "Comisión", "Otros"]
+        else:
+            categorias = ["Comida", "Ocio", "Gasolina", "Servicios Públicos",
+                          "Entretenimiento", "Pago Crédito", "Pago TC", "Otros"]
 
-    categoria = st.selectbox("Categoría", categorias, key="cat_select")
+        categoria_sel = st.selectbox("Categoría", categorias)
 
-    # Si elige "Otros", se activa un input adicional
-    if categoria == "Otros":
-        categoria_personalizada = st.text_input("Especifica la categoría personalizada", key="otro_cat")
-        if categoria_personalizada.strip() != "":
-            categoria = categoria_personalizada
+        # Si selecciona "Otros", pedir texto
+        if categoria_sel == "Otros":
+            categoria = st.text_input("Especifica la categoría")
+        else:
+            categoria = categoria_sel
 
-    # Formulario de transacción
-    with st.form("nueva_transaccion", clear_on_submit=True):
-        monto = st.number_input("Monto", min_value=0.01, key="monto_txn")
-        fecha = st.date_input("Fecha", key="fecha_txn")
+        monto = st.number_input("Monto", min_value=0.01)
+        fecha = st.date_input("Fecha")
 
         submitted = st.form_submit_button("Guardar")
         if submitted:
-            if categoria.strip() == "":
-                st.error("⚠️ Debes escribir una categoría si seleccionaste 'Otros'")
+            resp = insertar_transaccion(user_id, tipo, categoria, monto, fecha)
+            if resp.data:
+                st.success("Transacción guardada ✅")
+                st.rerun()
             else:
-                resp = insertar_transaccion(
-                    st.session_state["user"]["id"], tipo, categoria, monto, fecha
-                )
-                if resp.data:
-                    st.success("✅ Transacción guardada correctamente")
-                    st.rerun()
-                else:
-                    st.error("❌ Error al guardar la transacción")
+                st.error("Error al guardar la transacción")
+
+    # --- OBTENER TRANSACCIONES ---
+    trans = obtener_transacciones(user_id)
+
+    # --- BALANCE NETO ARRIBA ---
+    st.subheader("📊 Balance Neto")
+
+    if not trans:
+        st.info("No hay transacciones aún.")
+    else:
+        df = pd.DataFrame(trans)
+        df["monto"] = df["monto"].astype(float)
+
+        ingresos = df[df["tipo"] == "Ingreso"]
+        gastos = df[df["tipo"] == "Gasto"]
+
+        total_ingresos = ingresos["monto"].sum() if not ingresos.empty else 0
+        total_gastos = gastos["monto"].sum() if not gastos.empty else 0
+        balance = total_ingresos - total_gastos
+
+        color = "#2a9d8f" if balance >= 0 else "#e63946"
+        texto = "📈 Superávit" if balance >= 0 else "📉 Déficit"
+
+        porcentaje = (balance / total_ingresos * 100) if total_ingresos > 0 and balance > 0 else 0
+
+        st.markdown(f"""
+        <div style='background:{color}; padding:20px; border-radius:15px; text-align:center; color:white; font-size:22px; font-weight:bold;'>
+            {texto}: ${balance:,.2f} <br>
+            {'💾 Ahorro: ' + str(round(porcentaje,2)) + '%' if balance > 0 else ''}
+        </div>
+        """, unsafe_allow_html=True)
+
+        # --- RESUMEN POR CATEGORÍAS ---
+        st.subheader("📋 Resumen por Categorías")
+
+        col1, col2 = st.columns(2)
+
+        # Ingresos
+        with col1:
+            st.markdown("### 💵 Ingresos")
+            if not ingresos.empty:
+                resumen_ing = ingresos.groupby("categoria")["monto"].sum().reset_index()
+                for _, row in resumen_ing.iterrows():
+                    st.markdown(f"**{row['categoria']}**: ${row['monto']:,.2f}")
+                    st.progress(min(1.0, row["monto"] / total_ingresos if total_ingresos > 0 else 0))
+            else:
+                st.info("Sin ingresos registrados.")
+
+        # Gastos
+        with col2:
+            st.markdown("### 💸 Gastos")
+            if not gastos.empty:
+                resumen_gas = gastos.groupby("categoria")["monto"].sum().reset_index()
+                for _, row in resumen_gas.iterrows():
+                    st.markdown(f"**{row['categoria']}**: ${row['monto']:,.2f}")
+                    st.progress(min(1.0, row["monto"] / total_gastos if total_gastos > 0 else 0))
+            else:
+                st.info("Sin gastos registrados.")
 
 # ==============================
 # TAB 3: HISTORIAL (nuevo)
