@@ -76,48 +76,45 @@ with tabs[0]:
     creditos = obtener_creditos(user_id)
 
     if transacciones:
-        import pandas as pd
-        import plotly.graph_objs as go
-
         df = pd.DataFrame(transacciones)
+        df["monto"] = df["monto"].astype(float)
+
         total_ingresos = df[df["tipo"] == "Ingreso"]["monto"].sum()
         total_gastos = df[df["tipo"] == "Gasto"]["monto"].sum()
         balance = total_ingresos - total_gastos
         total_creditos = sum([c["monto"] for c in creditos]) if creditos else 0
 
-        # Métricas principales
+        # ==========================
+        # BLOQUE DE SUPERÁVIT / DÉFICIT
+        # ==========================
+        if balance >= 0:
+            porcentaje_ahorro = (balance / total_ingresos * 100) if total_ingresos > 0 else 0
+            st.markdown(f"""
+                <div style='background:#2ecc71; color:white; padding:20px; border-radius:10px; text-align:center; font-size:22px; font-weight:bold;'>
+                    📈 Superávit: ${balance:,.2f} <br>
+                    💾 Ahorro: {porcentaje_ahorro:.1f}%
+                </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.markdown(f"""
+                <div style='background:#e74c3c; color:white; padding:20px; border-radius:10px; text-align:center; font-size:22px; font-weight:bold;'>
+                    📉 Déficit: ${balance:,.2f}
+                </div>
+            """, unsafe_allow_html=True)
+
+        st.markdown("---")
+
+        # ==========================
+        # MÉTRICAS RESUMEN
+        # ==========================
         col1, col2, col3, col4 = st.columns(4)
         col1.metric("Ingresos", f"${total_ingresos:,.2f}")
         col2.metric("Gastos", f"${total_gastos:,.2f}")
         col3.metric("Balance", f"${balance:,.2f}")
         col4.metric("Créditos", f"${total_creditos:,.2f}")
 
-        # Preparar datos para gráfico
-        df["fecha"] = pd.to_datetime(df["fecha"])
-        df["periodo"] = df["fecha"].dt.to_period("M").astype(str)
-        resumen = df.groupby(["periodo", "tipo"])["monto"].sum().reset_index()
-
-        # Gráfico de barras comparando ingresos vs gastos
-        fig = go.Figure()
-        for tipo in ["Ingreso", "Gasto"]:
-            subset = resumen[resumen["tipo"] == tipo]
-            if not subset.empty:
-                fig.add_trace(go.Bar(
-                    x=subset["periodo"],
-                    y=subset["monto"],
-                    name=tipo
-                ))
-
-        fig.update_layout(
-            barmode="group",
-            title="Ingresos vs Gastos por Mes",
-            xaxis_title="Periodo",
-            yaxis_title="Monto"
-        )
-        st.plotly_chart(fig, use_container_width=True)
-
     else:
-        st.info("No hay transacciones aún. Agrega algunas en el tab 💸 Transacciones.")
+        st.info("No hay transacciones aún.")
 
 # ==============================
 # TAB 2: TRANSACCIONES
