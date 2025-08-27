@@ -153,40 +153,40 @@ with tabs[1]:
 
     # --- FORMULARIO ---
     # Aquí aplicamos la corrección: keys dinámicas para que al cambiar "Tipo" se actualicen las categorías
-    with st.form("nueva_transaccion"):
-        # key fijo para el tipo para mantener consistencia
-        tipo = st.selectbox("Tipo", ["Ingreso", "Gasto"], key="tipo_transaccion")
+with st.form("nueva_transaccion"):
+    # Elegir Ingreso o Gasto como radio
+    tipo = st.radio("Tipo", ["Ingreso", "Gasto"], horizontal=True, key="tipo_radio")
 
-        if tipo == "Ingreso":
-            categorias = ["Sueldo", "Préstamo", "Comisión", "Otros"]
+    if tipo == "Ingreso":
+        categorias = ["Sueldo", "Préstamo", "Comisión", "Otros"]
+    else:
+        categorias = ["Comida", "Ocio", "Gasolina", "Servicios Públicos",
+                      "Entretenimiento", "Pago Crédito", "Pago TC", "Otros"]
+
+    # Selección de categoría
+    categoria_sel = st.selectbox("Categoría", categorias, key=f"categoria_{tipo}")
+
+    # Si selecciona "Otros", mostrar campo para escribir
+    if categoria_sel == "Otros":
+        categoria = st.text_input("Especifica la categoría", key=f"otros_{tipo}").strip()
+    else:
+        categoria = categoria_sel
+
+    monto = st.number_input("Monto", min_value=0.01, key="monto_transaccion")
+    fecha = st.date_input("Fecha", key="fecha_transaccion")
+
+    submitted = st.form_submit_button("Guardar")
+    if submitted:
+        if categoria_sel == "Otros" and not categoria:
+            st.warning("⚠️ Debes especificar una categoría personalizada.")
         else:
-            categorias = ["Comida", "Ocio", "Gasolina", "Servicios Públicos",
-                          "Entretenimiento", "Pago Crédito", "Pago TC", "Otros"]
-
-        # key dinámica: depende del tipo — así Streamlit renderiza un widget distinto para Ingreso/Gasto
-        categoria_sel = st.selectbox("Categoría", categorias, key=f"categoria_{tipo}")
-        if categoria_sel == "Otros":
-            # key dinámica para el input de "Otros" (evita que quede compartido entre tipos)
-            categoria = st.text_input("Especifica la categoría", key=f"otros_{tipo}").strip()
-        else:
-            categoria = categoria_sel
-
-        monto = st.number_input("Monto", min_value=0.01, key="monto_transaccion")
-        fecha = st.date_input("Fecha", key="fecha_transaccion")
-
-        submitted = st.form_submit_button("Guardar")
-        if submitted:
-            # Validación: si eligió "Otros", debe escribir algo
-            if categoria_sel == "Otros" and not categoria:
-                st.warning("⚠️ Debes especificar una categoría personalizada.")
+            resp = insertar_transaccion(user_id, tipo, categoria, monto, fecha)
+            if getattr(resp, "data", None) or resp is None:
+                st.success("Transacción guardada ✅")
+                st.rerun()
             else:
-                resp = insertar_transaccion(user_id, tipo, categoria, monto, fecha)
-                # resp puede ser None o un objeto con atributo .data dependiendo de tu implementación de queries
-                if getattr(resp, "data", None) or resp is None:
-                    st.success("Transacción guardada ✅")
-                    st.rerun()
-                else:
-                    st.error("Error al guardar la transacción")
+                st.error("Error al guardar la transacción")
+
 
     # --- LISTADO DE TRANSACCIONES ---
     trans = obtener_transacciones(user_id)
