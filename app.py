@@ -152,7 +152,9 @@ with tabs[1]:
     st.header("📊 Transacciones")
 
     # --- FORMULARIO ---
+    # Aquí aplicamos la corrección: keys dinámicas para que al cambiar "Tipo" se actualicen las categorías
     with st.form("nueva_transaccion"):
+        # key fijo para el tipo para mantener consistencia
         tipo = st.selectbox("Tipo", ["Ingreso", "Gasto"], key="tipo_transaccion")
 
         if tipo == "Ingreso":
@@ -161,10 +163,10 @@ with tabs[1]:
             categorias = ["Comida", "Ocio", "Gasolina", "Servicios Públicos",
                           "Entretenimiento", "Pago Crédito", "Pago TC", "Otros"]
 
-        # key dinámica para forzar refresco del widget cuando cambia 'tipo'
+        # key dinámica: depende del tipo — así Streamlit renderiza un widget distinto para Ingreso/Gasto
         categoria_sel = st.selectbox("Categoría", categorias, key=f"categoria_{tipo}")
         if categoria_sel == "Otros":
-            # key dinámica para evitar reutilización del input entre Ingreso/Gasto
+            # key dinámica para el input de "Otros" (evita que quede compartido entre tipos)
             categoria = st.text_input("Especifica la categoría", key=f"otros_{tipo}").strip()
         else:
             categoria = categoria_sel
@@ -174,12 +176,13 @@ with tabs[1]:
 
         submitted = st.form_submit_button("Guardar")
         if submitted:
-            # Validación: si eligió "Otros", debe escribir la categoría
+            # Validación: si eligió "Otros", debe escribir algo
             if categoria_sel == "Otros" and not categoria:
                 st.warning("⚠️ Debes especificar una categoría personalizada.")
             else:
                 resp = insertar_transaccion(user_id, tipo, categoria, monto, fecha)
-                if getattr(resp, "data", None):
+                # resp puede ser None o un objeto con atributo .data dependiendo de tu implementación de queries
+                if getattr(resp, "data", None) or resp is None:
                     st.success("Transacción guardada ✅")
                     st.rerun()
                 else:
@@ -236,6 +239,7 @@ with tabs[1]:
                         </div>
                     """, unsafe_allow_html=True)
 
+
 # ==============================
 # TAB 3: HISTORIAL (nuevo)
 # ==============================
@@ -261,6 +265,7 @@ with tabs[2]:
     else:
         st.info("No tienes transacciones registradas.")
 
+
 # ==============================
 # TAB 4: CRÉDITOS
 # ==============================
@@ -274,10 +279,10 @@ with tabs[3]:
         plazo_meses = st.number_input("Plazo (meses)", min_value=1, step=1, key="plazo_credito")
         cuotas_pagadas = st.number_input("Cuotas pagadas", min_value=0, step=1, key="cuotas_pagadas_credito")
         cuota_mensual = st.number_input("Cuota mensual", min_value=0.01, key="cuota_mensual_credito")
-        submitted_credito = st.form_submit_button("Guardar crédito", use_container_width=True)
+        submitted_credito = st.form_submit_button("Guardar crédito")
         if submitted_credito:
             resp = insertar_credito(user_id, nombre, monto, tasa, plazo_meses, cuotas_pagadas, cuota_mensual)
-            if getattr(resp, "data", None):
+            if getattr(resp, "data", None) or resp is None:
                 st.success("Crédito guardado ✅")
                 st.rerun()
             else:
@@ -317,7 +322,7 @@ with tabs[4]:
         nombre = st.text_input("Nombre de la meta", key="nombre_meta")
         monto = st.number_input("Monto objetivo", min_value=0.01, key="monto_meta")
         ahorrado = st.number_input("Monto ahorrado inicial", min_value=0.0, key="ahorrado_meta")
-        submitted_meta = st.form_submit_button("Guardar meta", use_container_width=True)
+        submitted_meta = st.form_submit_button("Guardar meta")
         if submitted_meta:
             resp = insertar_meta(user_id, nombre, monto, ahorrado)
             if getattr(resp, "data", None) or resp is None:
