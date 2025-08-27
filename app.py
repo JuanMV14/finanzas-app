@@ -153,31 +153,36 @@ with tabs[1]:
 
     # --- FORMULARIO ---
     with st.form("nueva_transaccion"):
-        tipo = st.selectbox("Tipo", ["Ingreso", "Gasto"])
+        tipo = st.selectbox("Tipo", ["Ingreso", "Gasto"], key="tipo_transaccion")
 
-        if tipo == "Ingreso":
-            categorias = ["Sueldo", "Préstamo", "Comisión", "Otros"]
+if tipo == "Ingreso":
+    categorias = ["Sueldo", "Préstamo", "Comisión", "Otros"]
+else:
+    categorias = ["Comida", "Ocio", "Gasolina", "Servicios Públicos",
+                  "Entretenimiento", "Pago Crédito", "Pago TC", "Otros"]
+
+# 👇 clave dinámica para que Streamlit refresque el widget
+categoria_sel = st.selectbox("Categoría", categorias, key=f"categoria_{tipo}")
+
+if categoria_sel == "Otros":
+    categoria = st.text_input("Especifica la categoría", key=f"otros_{tipo}")
+else:
+    categoria = categoria_sel
+
+monto = st.number_input("Monto", min_value=0.01, key="monto_transaccion")
+fecha = st.date_input("Fecha", key="fecha_transaccion")
+
+submitted = st.form_submit_button("Guardar")
+if submitted:
+    if categoria_sel == "Otros" and not categoria.strip():
+        st.warning("⚠️ Debes especificar una categoría personalizada.")
+    else:
+        resp = insertar_transaccion(user_id, tipo, categoria, monto, fecha)
+        if resp.data:
+            st.success("Transacción guardada ✅")
+            st.rerun()
         else:
-            categorias = ["Comida", "Ocio", "Gasolina", "Servicios Públicos",
-                          "Entretenimiento", "Pago Crédito", "Pago TC", "Otros"]
-
-        categoria_sel = st.selectbox("Categoría", categorias)
-        if categoria_sel == "Otros":
-            categoria = st.text_input("Especifica la categoría")
-        else:
-            categoria = categoria_sel
-
-        monto = st.number_input("Monto", min_value=0.01)
-        fecha = st.date_input("Fecha")
-
-        submitted = st.form_submit_button("Guardar")
-        if submitted:
-            resp = insertar_transaccion(user_id, tipo, categoria, monto, fecha)
-            if resp.data:
-                st.success("Transacción guardada ✅")
-                st.rerun()
-            else:
-                st.error("Error al guardar la transacción")
+            st.error("Error al guardar la transacción")
 
     # --- LISTADO DE TRANSACCIONES ---
     trans = obtener_transacciones(user_id)
