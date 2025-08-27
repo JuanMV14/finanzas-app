@@ -1,151 +1,333 @@
 import streamlit as st
-from supabase import create_client
-from dotenv import load_dotenv
-import os
+import pandas as pd
+import plotly.graph_objs as go
+from datetime import date
 from queries import (
-    registrar_pago, update_credito, insertar_transaccion,
-    insertar_credito, borrar_transaccion, obtener_transacciones, obtener_creditos
+    insertar_transaccion,
+    insertar_credito,
+    borrar_transaccion,
+    obtener_transacciones,
+    obtener_creditos,
+    registrar_pago,
+    update_credito,
+    insertar_meta,
+    obtener_metas,
+    actualizar_meta
 )
 from utils import login, signup, logout
-from datetime import date
 
-# Cargar variables de entorno
-load_dotenv()
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+# -------------------------
+# CONFIG STREAMLIT
+# -------------------------
+st.set_page_config(page_title="💰 Finanzas Personales", layout="wide")
 
-supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+# -------------------------
+# SESIÓN
+# -------------------------
+if "user" not in st.session_state:
+    st.session_state["user"] = None
 
-st.set_page_config(page_title="Gestor Financiero", layout="wide")
+# -------------------------
+# SIDEBAR
+# -------------------------
+st.sidebar.title("🔐 Usuario")
 
-# ==============================
-# AUTENTICACIÓN
-# ==============================
-if "logged_in" not in st.session_state:
-    st.session_state.logged_in = False
+if st.session_state["user"] is None:
+    menu = st.sidebar.radio("Selecciona una opción:", ["Login", "Registro"])
+    if menu == "Login":
+        email = st.sidebar.text_input("Correo electrónico")
+        password = st.sidebar.text_input("Contraseña", type="password")
+        if st.sidebar.button("Ingresar"):
+            login(email, password)
 
-if not st.session_state.logged_in:
-    tab1, tab2 = st.tabs(["Iniciar Sesión", "Registrarse"])
-    with tab1:
-        email = st.text_input("Correo electrónico", key="login_email")
-        password = st.text_input("Contraseña", type="password", key="login_pass")
-        if st.button("Ingresar"):
-            if login(supabase, email, password):
-                st.session_state.logged_in = True
-                st.rerun()
-            else:
-                st.error("Credenciales incorrectas")
+    elif menu == "Registro":
+        email = st.sidebar.text_input("Correo electrónico")
+        password = st.sidebar.text_input("Contraseña", type="password")
+        if st.sidebar.button("Registrarse"):
+            signup(email, password)
 
-    with tab2:
-        email = st.text_input("Correo electrónico", key="signup_email")
-        password = st.text_input("Contraseña", type="password", key="signup_pass")
-        if st.button("Registrarse"):
-            if signup(supabase, email, password):
-                st.success("Usuario registrado. Inicia sesión.")
-            else:
-                st.error("Error al registrar usuario")
 else:
-    st.sidebar.title("Menú")
-    page = st.sidebar.radio("Ir a:", ["Transacciones", "Créditos", "Cerrar Sesión"])
-
-    if page == "Cerrar Sesión":
+    st.sidebar.success(f"Conectado: {st.session_state['user']['email']}")
+    if st.sidebar.button("Cerrar sesión"):
         logout()
-        st.session_state.logged_in = False
-        st.rerun()
 
-    # ==============================
-    # TRANSACCIONES
-    # ==============================
-    if page == "Transacciones":
-        st.title("Gestión de Transacciones")
+# -------------------------
+# APP PRINCIPAL
+# -------------------------
+if not st.session_state["user"]:
+    st.info("Inicia sesión para ver tu panel financiero.")
+    st.stop()
 
-        with st.form("transaccion_form"):
-            descripcion = st.text_input("Descripción")
-            monto = st.number_input("Monto", min_value=0.0, format="%.2f")
-            fecha = st.date_input("Fecha", value=date.today())
-            categoria = st.selectbox("Categoría", ["Ingreso", "Gasto", "Ahorro"])
-            submitted = st.form_submit_button("Agregar Transacción")
-            if submitted:
-                insertar_transaccion(supabase, descripcion, monto, str(fecha), categoria)
-                st.success("Transacción agregada correctamente")
-                st.rerun()
+user = st.session_state["user"]
+user_id = user["id"]
 
-        st.subheader("Historial de transacciones")
-        transacciones = obtener_transacciones(supabase)
+# ==============================
+# TABS
+# ==============================
+tabs = st.tabs(["📊 Dashboard", "💸 Transacciones", "📑 Historial", "💳 Créditos", "🎯 Metas"])
 
-        if transacciones:
-            for transaccion in transacciones:
-                with st.expander(f"{transaccion['descripcion']} - {transaccion['monto']}"):
-                    st.write(f"Fecha: {transaccion['fecha']}")
-                    st.write(f"Categoría: {transaccion['categoria']}")
+# ==============================
+# TAB 1: DASHBOARD
+# ==============================
+with tabs[0]:
+    st.header("📊 Dashboard Financiero")
 
-                    new_desc = st.text_input(
-                        "Editar descripción", value=transaccion["descripcion"], key=f"desc_{transaccion['id']}"
-                    )
-                    new_monto = st.number_input(
-                        "Editar monto", min_value=0.0, value=float(transaccion["monto"]), key=f"monto_{transaccion['id']}"
-                    )
-                    new_fecha = st.date_input(
-                        "Editar fecha", value=date.fromisoformat(transaccion["fecha"]), key=f"fecha_{transaccion['id']}"
-                    )
-                    # 🔥 CORRECCIÓN: forzar el valor actual como "index" de la lista
-                    categorias = ["Ingreso", "Gasto", "Ahorro"]
-                    new_categoria = st.selectbox(
-                        "Editar categoría",
-                        categorias,
-                        index=categorias.index(transaccion["categoria"]),
-                        key=f"cat_{transaccion['id']}"
-                    )
+    transacciones = obtener_transacciones(user_id)
+    creditos = obtener_creditos(user_id)
 
-                    if st.button("Guardar cambios", key=f"guardar_{transaccion['id']}"):
-                        update_credito(
-                            supabase,
-                            transaccion["id"],
-                            new_desc,
-                            new_monto,
-                            str(new_fecha),
-                            new_categoria  # 🔥 Ahora sí se guarda el cambio en categoría
-                        )
-                        st.success("Transacción actualizada")
-                        st.rerun()
+    if transacciones:
+        df = pd.DataFrame(transacciones)
+        df["monto"] = df["monto"].astype(float)
 
-                    if st.button("Eliminar", key=f"eliminar_{transaccion['id']}"):
-                        borrar_transaccion(supabase, transaccion["id"])
-                        st.warning("Transacción eliminada")
-                        st.rerun()
+        total_ingresos = df[df["tipo"] == "Ingreso"]["monto"].sum()
+        total_gastos = df[df["tipo"] == "Gasto"]["monto"].sum()
+        balance = total_ingresos - total_gastos
+        total_creditos = sum([c["monto"] for c in creditos]) if creditos else 0
+
+        # ==========================
+        # BLOQUE DE SUPERÁVIT / DÉFICIT
+        # ==========================
+        if balance >= 0:
+            porcentaje_ahorro = (balance / total_ingresos * 100) if total_ingresos > 0 else 0
+            st.markdown(f"""
+                <div style='background:#2ecc71; color:white; padding:20px; border-radius:10px; text-align:center; font-size:22px; font-weight:bold;'>
+                    📈 Superávit: ${balance:,.2f} <br>
+                    💾 Ahorro: {porcentaje_ahorro:.1f}%
+                </div>
+            """, unsafe_allow_html=True)
         else:
-            st.info("No hay transacciones registradas.")
+            st.markdown(f"""
+                <div style='background:#e74c3c; color:white; padding:20px; border-radius:10px; text-align:center; font-size:22px; font-weight:bold;'>
+                    📉 Déficit: ${balance:,.2f}
+                </div>
+            """, unsafe_allow_html=True)
 
-    # ==============================
-    # CRÉDITOS
-    # ==============================
-    if page == "Créditos":
-        st.title("Gestión de Créditos")
+        st.markdown("---")
 
-        with st.form("credito_form"):
-            nombre = st.text_input("Nombre del crédito")
-            deuda_total = st.number_input("Deuda total", min_value=0.0, format="%.2f")
-            cuota_mensual = st.number_input("Cuota mensual", min_value=0.0, format="%.2f")
-            fecha_pago = st.date_input("Fecha de pago", value=date.today())
-            submitted = st.form_submit_button("Agregar Crédito")
-            if submitted:
-                insertar_credito(supabase, nombre, deuda_total, cuota_mensual, str(fecha_pago))
-                st.success("Crédito agregado correctamente")
-                st.rerun()
+        # ==========================
+        # MÉTRICAS RESUMEN
+        # ==========================
+        col1, col2, col3, col4 = st.columns(4)
+        col1.metric("Ingresos", f"${total_ingresos:,.2f}")
+        col2.metric("Gastos", f"${total_gastos:,.2f}")
+        col3.metric("Balance", f"${balance:,.2f}")
+        col4.metric("Créditos", f"${total_creditos:,.2f}")
 
-        st.subheader("Lista de créditos")
-        creditos = obtener_creditos(supabase)
+        # ==========================
+        # GRÁFICO DE INGRESOS VS GASTOS
+        # ==========================
+        df["fecha"] = pd.to_datetime(df["fecha"])
+        df["mes"] = df["fecha"].dt.to_period("M").astype(str)
+        resumen = df.groupby(["mes", "tipo"])["monto"].sum().reset_index()
 
-        if creditos:
-            for credito in creditos:
-                with st.expander(f"{credito['nombre']} - Deuda: {credito['deuda_total']}"):
-                    st.write(f"Cuota mensual: {credito['cuota_mensual']}")
-                    st.write(f"Fecha de pago: {credito['fecha_pago']}")
+        import plotly.express as px
+        fig = px.bar(
+            resumen,
+            x="mes",
+            y="monto",
+            color="tipo",
+            barmode="group",
+            title="Ingresos vs Gastos por Mes",
+        )
 
-                    pago = st.number_input("Monto del pago", min_value=0.0, format="%.2f", key=f"pago_{credito['id']}")
-                    if st.button("Registrar pago", key=f"registrar_{credito['id']}"):
-                        registrar_pago(supabase, credito["id"], pago)
-                        st.success("Pago registrado correctamente")
-                        st.rerun()
+        # Ajustar grosor de las barras
+        fig.update_traces(marker_line_width=0, width=0.35)  # barras delgadas
+
+        fig.update_layout(
+            xaxis_title="Mes",
+            yaxis_title="Monto",
+            legend_title="Tipo",
+            bargap=0.3  # espacio entre grupos de barras
+        )
+
+        st.plotly_chart(fig, use_container_width=True)
+
+    else:
+        st.info("No hay transacciones aún.")
+
+# ==============================
+# TAB 2: TRANSACCIONES
+# ==============================
+with tabs[1]:
+    st.header("📊 Transacciones")
+
+    # --- FORMULARIO ---
+    with st.form("nueva_transaccion"):
+        tipo = st.selectbox("Tipo", ["Ingreso", "Gasto"])
+
+        # categorías dinámicas según tipo
+        categorias_ingreso = ["Sueldo", "Préstamo", "Comisión", "Otros"]
+        categorias_gasto = ["Comida", "Ocio", "Gasolina", "Servicios Públicos",
+                            "Entretenimiento", "Pago Crédito", "Pago TC", "Otros"]
+
+        if tipo == "Ingreso":
+            categorias = categorias_ingreso
         else:
-            st.info("No hay créditos registrados.")
+            categorias = categorias_gasto
+
+        categoria_sel = st.selectbox("Categoría", categorias)
+
+        # si elige "Otros", aparece campo de texto
+        if categoria_sel == "Otros":
+            categoria = st.text_input("Especifica la categoría personalizada")
+        else:
+            categoria = categoria_sel
+
+        monto = st.number_input("Monto", min_value=0.01)
+        fecha = st.date_input("Fecha")
+
+        submitted = st.form_submit_button("Guardar")
+        if submitted:
+            if categoria.strip() == "":
+                st.error("Debes especificar una categoría válida.")
+            else:
+                resp = insertar_transaccion(user_id, tipo, categoria, monto, fecha)
+                if resp.data:
+                    st.success("Transacción guardada ✅")
+                    st.rerun()
+                else:
+                    st.error("Error al guardar la transacción")
+
+    # --- LISTADO DE TRANSACCIONES ---
+    trans = obtener_transacciones(user_id)
+
+    if not trans:
+        st.info("No hay transacciones registradas aún.")
+    else:
+        st.subheader("📋 Historial de Transacciones")
+
+        df = pd.DataFrame(trans)
+        df["monto"] = df["monto"].astype(float)
+
+        col_ing, col_gas = st.columns(2)
+
+        # Ingresos
+        with col_ing:
+            st.markdown("### 💵 Ingresos")
+            ingresos = df[df["tipo"] == "Ingreso"]
+            if ingresos.empty:
+                st.info("Sin ingresos registrados.")
+            else:
+                for _, row in ingresos.iterrows():
+                    porcentaje = min(100, (row["monto"] / ingresos["monto"].max()) * 100)
+                    st.markdown(f"""
+                        <div style='margin-bottom:10px;'>
+                            <b>{row['categoria']}</b> - ${row['monto']:,.2f} ({row['fecha']})
+                            <div style='background:#ddd; border-radius:10px; height:20px;'>
+                                <div style='width:{porcentaje}%; background:#2ecc71; height:20px; border-radius:10px;'></div>
+                            </div>
+                        </div>
+                    """, unsafe_allow_html=True)
+
+        # Gastos
+        with col_gas:
+            st.markdown("### 💸 Gastos")
+            gastos = df[df["tipo"] == "Gasto"]
+            if gastos.empty:
+                st.info("Sin gastos registrados.")
+            else:
+                for _, row in gastos.iterrows():
+                    porcentaje = min(100, (row["monto"] / gastos["monto"].max()) * 100)
+                    st.markdown(f"""
+                        <div style='margin-bottom:10px;'>
+                            <b>{row['categoria']}</b> - ${row['monto']:,.2f} ({row['fecha']})
+                            <div style='background:#ddd; border-radius:10px; height:20px;'>
+                                <div style='width:{porcentaje}%; background:#e74c3c; height:20px; border-radius:10px;'></div>
+                            </div>
+                        </div>
+                    """, unsafe_allow_html=True)
+
+# ==============================
+# TAB 3: HISTORIAL (nuevo)
+# ==============================
+with tabs[2]:
+    st.header("📑 Historial de transacciones")
+
+    trans = obtener_transacciones(user_id)
+    if trans:
+        import plotly.express as px
+
+        df = pd.DataFrame(trans)
+        df["fecha"] = pd.to_datetime(df["fecha"])
+        df = df.sort_values("fecha", ascending=False)
+
+        st.dataframe(df, use_container_width=True)
+
+        # Gráfico histórico
+        df["mes"] = df["fecha"].dt.to_period("M").astype(str)
+        resumen = df.groupby(["mes", "tipo"])["monto"].sum().reset_index()
+        fig = px.line(resumen, x="mes", y="monto", color="tipo", markers=True,
+                      title="Evolución de Ingresos y Gastos")
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.info("No tienes transacciones registradas.")
+
+# ==============================
+# TAB 3: CRÉDITOS
+# ==============================
+with tabs[3]:
+    st.header("💳 Créditos")
+
+    with st.form("nuevo_credito"):
+        nombre = st.text_input("Nombre del crédito")
+        monto = st.number_input("Monto", min_value=0.01)
+        tasa = st.number_input("Tasa de interés (%)", min_value=0.0)
+        plazo_meses = st.number_input("Plazo (meses)", min_value=1, step=1)
+        cuotas_pagadas = st.number_input("Cuotas pagadas", min_value=0, step=1)
+        cuota_mensual = st.number_input("Cuota mensual", min_value=0.01)
+        submitted = st.form_submit_button("Guardar crédito")
+        if submitted:
+            resp = insertar_credito(user_id, nombre, monto, tasa, plazo_meses, cuotas_pagadas, cuota_mensual)
+            if resp.data:
+                st.success("Crédito guardado ✅")
+                st.rerun()
+            else:
+                st.error("Error al guardar el crédito")
+
+    creditos = obtener_creditos(user_id)
+    if creditos:
+        for c in creditos:
+            st.subheader(f"📌 {c['nombre']}")
+            progreso = c["cuotas_pagadas"] / c["plazo_meses"]
+            st.progress(progreso)
+            st.write(f"Pagadas: {c['cuotas_pagadas']} / {c['plazo_meses']}")
+            st.write(f"💰 Cuota mensual: {c['cuota_mensual']:.2f}")
+
+            if st.button(f"Registrar pago ➕", key=c['id']):
+                registrar_pago(c['id'])
+                st.success("✅ Pago registrado correctamente")
+                st.rerun()
+    else:
+        st.info("No tienes créditos registrados.")
+
+# ==============================
+# TAB 4: METAS DE AHORRO
+# ==============================
+with tabs[4]:
+    st.header("🎯 Metas de ahorro")
+
+    with st.form("nueva_meta"):
+        nombre = st.text_input("Nombre de la meta")
+        monto = st.number_input("Monto objetivo", min_value=0.01)
+        ahorrado = st.number_input("Monto ahorrado inicial", min_value=0.0)
+        submitted = st.form_submit_button("Guardar meta")
+        if submitted:
+            insertar_meta(user_id, nombre, monto, ahorrado)
+            st.success("Meta guardada ✅")
+            st.rerun()
+
+    metas = obtener_metas(user_id)
+    if metas:
+        for m in metas:
+            st.subheader(f"🎯 {m['nombre']}")
+            progreso = m["ahorrado"] / m["monto"]
+            st.progress(progreso)
+            st.write(f"💰 Ahorrado: {m['ahorrado']} / {m['monto']}")
+
+            extra = st.number_input(f"Agregar ahorro a {m['nombre']}", min_value=0.0, key=f"extra_{m['id']}")
+            if st.button(f"➕ Aumentar ahorro {m['nombre']}", key=f"btn_{m['id']}"):
+                actualizar_meta(m["id"], m["ahorrado"] + extra)
+                st.success("✅ Ahorro actualizado")
+                st.rerun()
+    else:
+        st.info("No tienes metas registradas.")
