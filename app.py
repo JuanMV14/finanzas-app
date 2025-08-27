@@ -33,22 +33,22 @@ if "user" not in st.session_state:
 st.sidebar.title("🔐 Usuario")
 
 if st.session_state["user"] is None:
-    menu = st.sidebar.radio("Selecciona una opción:", ["Login", "Registro"])
+    menu = st.sidebar.radio("Selecciona una opción:", ["Login", "Registro"], key="auth_menu")
     if menu == "Login":
-        email = st.sidebar.text_input("Correo electrónico")
-        password = st.sidebar.text_input("Contraseña", type="password")
-        if st.sidebar.button("Ingresar"):
+        email = st.sidebar.text_input("Correo electrónico", key="login_email")
+        password = st.sidebar.text_input("Contraseña", type="password", key="login_password")
+        if st.sidebar.button("Ingresar", key="btn_login"):
             login(email, password)
 
     elif menu == "Registro":
-        email = st.sidebar.text_input("Correo electrónico")
-        password = st.sidebar.text_input("Contraseña", type="password")
-        if st.sidebar.button("Registrarse"):
+        email = st.sidebar.text_input("Correo electrónico", key="signup_email")
+        password = st.sidebar.text_input("Contraseña", type="password", key="signup_password")
+        if st.sidebar.button("Registrarse", key="btn_signup"):
             signup(email, password)
 
 else:
     st.sidebar.success(f"Conectado: {st.session_state['user']['email']}")
-    if st.sidebar.button("Cerrar sesión"):
+    if st.sidebar.button("Cerrar sesión", key="btn_logout"):
         logout()
 
 # -------------------------
@@ -146,43 +146,45 @@ with tabs[0]:
         st.info("No hay transacciones aún.")
 
 # ==============================
-# TAB 2: TRANSACCIONES
+# TAB 2: TRANSACCIONES (FIX APLICADO)
 # ==============================
 with tabs[1]:
     st.header("📊 Transacciones")
 
     # --- FORMULARIO ---
+    # Aquí está la corrección: usamos radio (tipo) y keys dinámicas para la categoría y el campo 'Otros'
     with st.form("nueva_transaccion"):
-        tipo = st.selectbox("Tipo", ["Ingreso", "Gasto"])
+        # tipo como radio horizontal con key fijo
+        tipo = st.radio("Tipo", ["Ingreso", "Gasto"], horizontal=True, key="tipo_transaccion")
 
-        # categorías dinámicas según tipo
+        # listas de categorías por tipo (no cambiar el resto del código)
         categorias_ingreso = ["Sueldo", "Préstamo", "Comisión", "Otros"]
         categorias_gasto = ["Comida", "Ocio", "Gasolina", "Servicios Públicos",
                             "Entretenimiento", "Pago Crédito", "Pago TC", "Otros"]
 
-        if tipo == "Ingreso":
-            categorias = categorias_ingreso
-        else:
-            categorias = categorias_gasto
+        categorias = categorias_ingreso if tipo == "Ingreso" else categorias_gasto
 
-        categoria_sel = st.selectbox("Categoría", categorias)
+        # selectbox con key dinámica para forzar a Streamlit a renderizar widgets distintos según el tipo
+        categoria_sel = st.selectbox("Categoría", categorias, key=f"categoria_{tipo}")
 
-        # si elige "Otros", aparece campo de texto
+        # Si selecciona "Otros", mostramos un text_input con key dinámica
         if categoria_sel == "Otros":
-            categoria = st.text_input("Especifica la categoría personalizada")
+            categoria = st.text_input("Especifica la categoría", key=f"otros_{tipo}").strip()
         else:
             categoria = categoria_sel
 
-        monto = st.number_input("Monto", min_value=0.01)
-        fecha = st.date_input("Fecha")
+        monto = st.number_input("Monto", min_value=0.01, key="monto_transaccion")
+        fecha = st.date_input("Fecha", key="fecha_transaccion")
 
         submitted = st.form_submit_button("Guardar")
         if submitted:
-            if categoria.strip() == "":
-                st.error("Debes especificar una categoría válida.")
+            # validación: si escogió 'Otros' debe escribir la categoría
+            if categoria_sel == "Otros" and not categoria:
+                st.warning("⚠️ Debes especificar una categoría personalizada.")
             else:
                 resp = insertar_transaccion(user_id, tipo, categoria, monto, fecha)
-                if resp.data:
+                # tu implementación de insertar_transaccion puede devolver objeto con .data o None
+                if getattr(resp, "data", None) or resp is None:
                     st.success("Transacción guardada ✅")
                     st.rerun()
                 else:
@@ -208,8 +210,9 @@ with tabs[1]:
             if ingresos.empty:
                 st.info("Sin ingresos registrados.")
             else:
+                max_ingreso = ingresos["monto"].max() if not ingresos.empty else 1.0
                 for _, row in ingresos.iterrows():
-                    porcentaje = min(100, (row["monto"] / ingresos["monto"].max()) * 100)
+                    porcentaje = min(100, (row["monto"] / max_ingreso) * 100) if max_ingreso else 0
                     st.markdown(f"""
                         <div style='margin-bottom:10px;'>
                             <b>{row['categoria']}</b> - ${row['monto']:,.2f} ({row['fecha']})
@@ -226,8 +229,9 @@ with tabs[1]:
             if gastos.empty:
                 st.info("Sin gastos registrados.")
             else:
+                max_gasto = gastos["monto"].max() if not gastos.empty else 1.0
                 for _, row in gastos.iterrows():
-                    porcentaje = min(100, (row["monto"] / gastos["monto"].max()) * 100)
+                    porcentaje = min(100, (row["monto"] / max_gasto) * 100) if max_gasto else 0
                     st.markdown(f"""
                         <div style='margin-bottom:10px;'>
                             <b>{row['categoria']}</b> - ${row['monto']:,.2f} ({row['fecha']})
@@ -263,7 +267,7 @@ with tabs[2]:
         st.info("No tienes transacciones registradas.")
 
 # ==============================
-# TAB 3: CRÉDITOS
+# TAB 4: CRÉDITOS
 # ==============================
 with tabs[3]:
     st.header("💳 Créditos")
@@ -278,7 +282,7 @@ with tabs[3]:
         submitted = st.form_submit_button("Guardar crédito")
         if submitted:
             resp = insertar_credito(user_id, nombre, monto, tasa, plazo_meses, cuotas_pagadas, cuota_mensual)
-            if resp.data:
+            if getattr(resp, "data", None) or resp is None:
                 st.success("Crédito guardado ✅")
                 st.rerun()
             else:
@@ -288,12 +292,20 @@ with tabs[3]:
     if creditos:
         for c in creditos:
             st.subheader(f"📌 {c['nombre']}")
-            progreso = c["cuotas_pagadas"] / c["plazo_meses"]
+            progreso = 0
+            try:
+                if c["plazo_meses"]:
+                    progreso = min(1.0, max(0.0, c["cuotas_pagadas"] / c["plazo_meses"]))
+            except Exception:
+                progreso = 0
             st.progress(progreso)
             st.write(f"Pagadas: {c['cuotas_pagadas']} / {c['plazo_meses']}")
-            st.write(f"💰 Cuota mensual: {c['cuota_mensual']:.2f}")
+            try:
+                st.write(f"💰 Cuota mensual: {float(c['cuota_mensual']):.2f}")
+            except Exception:
+                st.write(f"💰 Cuota mensual: {c['cuota_mensual']}")
 
-            if st.button(f"Registrar pago ➕", key=c['id']):
+            if st.button(f"Registrar pago ➕", key=f"pago_{c['id']}"):
                 registrar_pago(c['id'])
                 st.success("✅ Pago registrado correctamente")
                 st.rerun()
@@ -301,30 +313,42 @@ with tabs[3]:
         st.info("No tienes créditos registrados.")
 
 # ==============================
-# TAB 4: METAS DE AHORRO
+# TAB 5: METAS DE AHORRO
 # ==============================
 with tabs[4]:
     st.header("🎯 Metas de ahorro")
 
     with st.form("nueva_meta"):
-        nombre = st.text_input("Nombre de la meta")
-        monto = st.number_input("Monto objetivo", min_value=0.01)
-        ahorrado = st.number_input("Monto ahorrado inicial", min_value=0.0)
-        submitted = st.form_submit_button("Guardar meta")
-        if submitted:
-            insertar_meta(user_id, nombre, monto, ahorrado)
-            st.success("Meta guardada ✅")
-            st.rerun()
+        nombre = st.text_input("Nombre de la meta", key="nombre_meta")
+        monto = st.number_input("Monto objetivo", min_value=0.01, key="monto_meta")
+        ahorrado = st.number_input("Monto ahorrado inicial", min_value=0.0, key="ahorrado_meta")
+        submitted_meta = st.form_submit_button("Guardar meta")
+        if submitted_meta:
+            resp = insertar_meta(user_id, nombre, monto, ahorrado)
+            if getattr(resp, "data", None) or resp is None:
+                st.success("Meta guardada ✅")
+                st.rerun()
+            else:
+                st.error("Error al guardar la meta")
 
     metas = obtener_metas(user_id)
     if metas:
         for m in metas:
             st.subheader(f"🎯 {m['nombre']}")
-            progreso = m["ahorrado"] / m["monto"]
+            progreso = 0
+            try:
+                if m["monto"] > 0:
+                    progreso = min(1.0, max(0.0, m["ahorrado"] / m["monto"]))
+            except Exception:
+                progreso = 0
             st.progress(progreso)
             st.write(f"💰 Ahorrado: {m['ahorrado']} / {m['monto']}")
 
-            extra = st.number_input(f"Agregar ahorro a {m['nombre']}", min_value=0.0, key=f"extra_{m['id']}")
+            extra = st.number_input(
+                f"Agregar ahorro a {m['nombre']}",
+                min_value=0.0,
+                key=f"extra_{m['id']}"
+            )
             if st.button(f"➕ Aumentar ahorro {m['nombre']}", key=f"btn_{m['id']}"):
                 actualizar_meta(m["id"], m["ahorrado"] + extra)
                 st.success("✅ Ahorro actualizado")
