@@ -151,13 +151,12 @@ with tabs[0]:
 with tabs[1]:
     st.header("📊 Transacciones")
 
-    # --- FORMULARIO ---
-    # Aquí está la corrección: usamos radio (tipo) y keys dinámicas para la categoría y el campo 'Otros'
-    with st.form("nueva_transaccion"):
-        # tipo como radio horizontal con key fijo
-        tipo = st.radio("Tipo", ["Ingreso", "Gasto"], horizontal=True, key="tipo_transaccion")
+    # --- NOTE: tipo está fuera del form para forzar re-render cuando cambie ---
+    tipo = st.radio("Tipo", ["Ingreso", "Gasto"], horizontal=True, key="tipo_transaccion")
 
-        # listas de categorías por tipo (no cambiar el resto del código)
+    # --- FORMULARIO ---
+    with st.form("nueva_transaccion"):
+        # listas de categorías por tipo (sin tocar el resto del código)
         categorias_ingreso = ["Sueldo", "Préstamo", "Comisión", "Otros"]
         categorias_gasto = ["Comida", "Ocio", "Gasolina", "Servicios Públicos",
                             "Entretenimiento", "Pago Crédito", "Pago TC", "Otros"]
