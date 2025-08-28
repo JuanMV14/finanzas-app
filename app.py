@@ -75,14 +75,14 @@ with tabs[0]:
     transacciones = obtener_transacciones(user_id)
     creditos = obtener_creditos(user_id)
 
- #   if transacciones:
-#      df = pd.DataFrame(transacciones)
- #       df["monto"] = df["monto"].astype(float)
-#
- #       total_ingresos = df[df["tipo"] == "Ingreso"]["monto"].sum()
-  #      total_gastos = df[df["tipo"] == "Gasto"]["monto"].sum()
-   #     balance = total_ingresos - total_gastos
-    #    total_creditos = sum([c["monto"] for c in creditos]) if creditos else 0
+    if transacciones:
+      df = pd.DataFrame(transacciones)
+        df["monto"] = df["monto"].astype(float)
+
+        total_ingresos = df[df["tipo"] == "Ingreso"]["monto"].sum()
+        total_gastos = df[df["tipo"] == "Gasto"]["monto"].sum()
+        balance = total_ingresos - total_gastos
+        total_creditos = sum([c["monto"] for c in creditos]) if creditos else 0
 
         # ==========================
         # BLOQUE DE SUPERÁVIT / DÉFICIT
