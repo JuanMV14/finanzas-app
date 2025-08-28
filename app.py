@@ -152,7 +152,12 @@ with tabs[1]:
     st.header("📊 Transacciones")
 
     # --- FORMULARIO DE TRANSACCIÓN ---
-    tipo = st.radio("Tipo", ["Ingreso", "Gasto"], horizontal=True, key="tipo_transaccion")
+    tipo = st.radio(
+        "Tipo",
+        ["Ingreso", "Gasto"],
+        horizontal=True,
+        key="transaccion_tipo_radio"
+    )
 
     # Listas de categorías por tipo
     categorias_ingreso = ["Sueldo", "Préstamo", "Comisión", "Otros"]
@@ -163,18 +168,32 @@ with tabs[1]:
     categorias = categorias_ingreso if tipo == "Ingreso" else categorias_gasto
 
     # Selectbox fuera del form para permitir re-render
-    categoria_sel = st.selectbox("Categoría", categorias, key=f"categoria_{tipo}")
+    categoria_sel = st.selectbox(
+        "Categoría",
+        categorias,
+        key=f"transaccion_categoria_sel_{tipo}"
+    )
 
-    with st.form("nueva_transaccion"):
+    with st.form("nueva_transaccion_form"):
         # Campo de texto condicional dentro del form
         if categoria_sel == "Otros":
-            categoria = st.text_input("Especifica la categoría", key=f"otros_{tipo}").strip()
+            categoria = st.text_input(
+                "Especifica la categoría",
+                key=f"transaccion_categoria_otro_{tipo}"
+            ).strip()
         else:
             categoria = categoria_sel
 
-        monto = st.number_input("Monto", min_value=0.01, key="monto_transaccion")
-        fecha = st.date_input("Fecha", key="fecha_transaccion")
-        submitted = st.form_submit_button("Guardar")
+        monto = st.number_input(
+            "Monto",
+            min_value=0.01,
+            key="transaccion_monto_input"
+        )
+        fecha = st.date_input(
+            "Fecha",
+            key="transaccion_fecha_input"
+        )
+        submitted = st.form_submit_button("Guardar", use_container_width=True)
 
         if submitted:
             if categoria_sel == "Otros" and not categoria:
@@ -207,14 +226,14 @@ with tabs[1]:
             if ingresos.empty:
                 st.info("Sin ingresos registrados.")
             else:
-                max_ingreso = ingresos["monto"].max() if not ingresos.empty else 1.0
+                max_ingreso = ingresos["monto"].max()
                 for _, row in ingresos.iterrows():
-                    porcentaje = min(100, (row["monto"] / max_ingreso) * 100) if max_ingreso else 0
+                    porcentaje = (row["monto"] / max_ingreso) * 100 if max_ingreso else 0
                     st.markdown(f"""
                         <div style='margin-bottom:10px;'>
                             <b>{row['categoria']}</b> - ${row['monto']:,.2f} ({row['fecha']})
                             <div style='background:#ddd; border-radius:10px; height:20px;'>
-                                <div style='width:{porcentaje}%; background:#2ecc71; height:20px; border-radius:10px;'></div>
+                                <div style='width:{porcentaje:.2f}%; background:#2ecc71; height:20px; border-radius:10px;'></div>
                             </div>
                         </div>
                     """, unsafe_allow_html=True)
@@ -226,14 +245,14 @@ with tabs[1]:
             if gastos.empty:
                 st.info("Sin gastos registrados.")
             else:
-                max_gasto = gastos["monto"].max() if not gastos.empty else 1.0
+                max_gasto = gastos["monto"].max()
                 for _, row in gastos.iterrows():
-                    porcentaje = min(100, (row["monto"] / max_gasto) * 100) if max_gasto else 0
+                    porcentaje = (row["monto"] / max_gasto) * 100 if max_gasto else 0
                     st.markdown(f"""
                         <div style='margin-bottom:10px;'>
                             <b>{row['categoria']}</b> - ${row['monto']:,.2f} ({row['fecha']})
                             <div style='background:#ddd; border-radius:10px; height:20px;'>
-                                <div style='width:{porcentaje}%; background:#e74c3c; height:20px; border-radius:10px;'></div>
+                                <div style='width:{porcentaje:.2f}%; background:#e74c3c; height:20px; border-radius:10px;'></div>
                             </div>
                         </div>
                     """, unsafe_allow_html=True)
