@@ -146,25 +146,27 @@ with tabs[0]:
         st.info("No hay transacciones aún.")
 
 # ==============================
-# TAB 2: TRANSACCIONES (FIX APLICADO)
+# TAB 2: TRANSACCIONES
 # ==============================
 with tabs[1]:
     st.header("📊 Transacciones")
 
-# --- FORMULARIO DE TRANSACCIÓN ---
-tipo = st.radio("Tipo", ["Ingreso", "Gasto"], horizontal=True, key="tipo_transaccion")
+    # --- FORMULARIO DE TRANSACCIÓN ---
+    tipo = st.radio("Tipo", ["Ingreso", "Gasto"], horizontal=True, key="tipo_transaccion")
 
-# listas de categorías por tipo
+    # Listas de categorías por tipo
     categorias_ingreso = ["Sueldo", "Préstamo", "Comisión", "Otros"]
-    categorias_gasto = ["Comida", "Ocio", "Gasolina", "Servicios Públicos",
-                    "Entretenimiento", "Pago Crédito", "Pago TC", "Otros"]
+    categorias_gasto = [
+        "Comida", "Ocio", "Gasolina", "Servicios Públicos",
+        "Entretenimiento", "Pago Crédito", "Pago TC", "Otros"
+    ]
     categorias = categorias_ingreso if tipo == "Ingreso" else categorias_gasto
 
-# selectbox FUERA del formulario para permitir re-render
+    # Selectbox fuera del form para permitir re-render
     categoria_sel = st.selectbox("Categoría", categorias, key=f"categoria_{tipo}")
 
     with st.form("nueva_transaccion"):
-    # campo de texto condicional dentro del form
+        # Campo de texto condicional dentro del form
         if categoria_sel == "Otros":
             categoria = st.text_input("Especifica la categoría", key=f"otros_{tipo}").strip()
         else:
@@ -186,17 +188,17 @@ tipo = st.radio("Tipo", ["Ingreso", "Gasto"], horizontal=True, key="tipo_transac
                     st.error("Error al guardar la transacción")
 
     # --- LISTADO DE TRANSACCIONES ---
-        trans = obtener_transacciones(user_id)
+    trans = obtener_transacciones(user_id)
 
-        if not trans:
-            st.info("No hay transacciones registradas aún.")
-        else:
-            st.subheader("📋 Historial de Transacciones")
+    if not trans:
+        st.info("No hay transacciones registradas aún.")
+    else:
+        st.subheader("📋 Historial de Transacciones")
 
-            df = pd.DataFrame(trans)
-            df["monto"] = df["monto"].astype(float)
+        df = pd.DataFrame(trans)
+        df["monto"] = df["monto"].astype(float)
 
-            col_ing, col_gas = st.columns(2)
+        col_ing, col_gas = st.columns(2)
 
         # Ingresos
         with col_ing:
