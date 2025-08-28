@@ -201,53 +201,59 @@ with tabs[1]:
                 else:
                     st.error("Error al guardar la transacción")
 
-    # --- LISTADO DE TRANSACCIONES ---
-    trans = obtener_transacciones(user_id)
-    if not trans:
-        st.info("No hay transacciones registradas aún.")
-    else:
-        st.subheader("📋 Historial de Transacciones")
+# --- LISTADO DE TRANSACCIONES ---
+trans = obtener_transacciones(user_id)
 
-        df = pd.DataFrame(trans)
-        df["monto"] = df["monto"].astype(float)
+if not trans:
+    st.info("No hay transacciones registradas aún.")
+else:
+    st.subheader("📋 Historial de Transacciones")
 
-        col_ing, col_gas = st.columns(2)
+    df = pd.DataFrame(trans)
+    df["monto"] = df["monto"].astype(float)
 
-        with col_ing:
-            st.markdown("### 💵 Ingresos")
-            ingresos = df[df["tipo"] == "Ingreso"]
-            if ingresos.empty:
-                st.info("Sin ingresos registrados.")
-            else:
-                max_ingreso = ingresos["monto"].max()
-                for _, row in ingresos.iterrows():
-                    porcentaje = (row["monto"] / max_ingreso) * 100 if max_ingreso else 0
-                    st.markdown(f"""
-                        <div style='margin-bottom:10px;'>
-                            <b>{row['categoria']}</b> - ${row['monto']:,.2f} ({row['fecha']})
-                            <div style='background:#ddd; border-radius:10px; height:20px;'>
-                                <div style='width:{porcentaje:.2f}%; background:#2ecc71; height:20px; border-radius:10px;'></div>
-                            </div>
+    # Agrupamos por tipo y categoría para sumar montos
+    df_agrupado = df.groupby(["tipo", "categoria"], as_index=False)["monto"].sum()
+
+    col_ing, col_gas = st.columns(2)
+
+    # Ingresos
+    with col_ing:
+        st.markdown("### 💵 Ingresos")
+        ingresos = df_agrupado[df_agrupado["tipo"] == "Ingreso"]
+        if ingresos.empty:
+            st.info("Sin ingresos registrados.")
+        else:
+            max_ingreso = ingresos["monto"].max()
+            for _, row in ingresos.iterrows():
+                porcentaje = (row["monto"] / max_ingreso) * 100 if max_ingreso else 0
+                st.markdown(f"""
+                    <div style='margin-bottom:10px;'>
+                        <b>{row['categoria']}</b> - ${row['monto']:,.2f}
+                        <div style='background:#ddd; border-radius:10px; height:20px;'>
+                            <div style='width:{porcentaje:.2f}%; background:#2ecc71; height:20px; border-radius:10px;'></div>
                         </div>
-                    """, unsafe_allow_html=True)
+                    </div>
+                """, unsafe_allow_html=True)
 
-        with col_gas:
-            st.markdown("### 💸 Gastos")
-            gastos = df[df["tipo"] == "Gasto"]
-            if gastos.empty:
-                st.info("Sin gastos registrados.")
-            else:
-                max_gasto = gastos["monto"].max()
-                for _, row in gastos.iterrows():
-                    porcentaje = (row["monto"] / max_gasto) * 100 if max_gasto else 0
-                    st.markdown(f"""
-                        <div style='margin-bottom:10px;'>
-                            <b>{row['categoria']}</b> - ${row['monto']:,.2f} ({row['fecha']})
-                            <div style='background:#ddd; border-radius:10px; height:20px;'>
-                                <div style='width:{porcentaje:.2f}%; background:#e74c3c; height:20px; border-radius:10px;'></div>
-                            </div>
+    # Gastos
+    with col_gas:
+        st.markdown("### 💸 Gastos")
+        gastos = df_agrupado[df_agrupado["tipo"] == "Gasto"]
+        if gastos.empty:
+            st.info("Sin gastos registrados.")
+        else:
+            max_gasto = gastos["monto"].max()
+            for _, row in gastos.iterrows():
+                porcentaje = (row["monto"] / max_gasto) * 100 if max_gasto else 0
+                st.markdown(f"""
+                    <div style='margin-bottom:10px;'>
+                        <b>{row['categoria']}</b> - ${row['monto']:,.2f}
+                        <div style='background:#ddd; border-radius:10px; height:20px;'>
+                            <div style='width:{porcentaje:.2f}%; background:#e74c3c; height:20px; border-radius:10px;'></div>
                         </div>
-                    """, unsafe_allow_html=True)
+                    </div>
+                """, unsafe_allow_html=True)
 
 # ==============================
 # TAB 3: HISTORIAL
