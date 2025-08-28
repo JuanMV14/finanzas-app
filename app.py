@@ -76,7 +76,7 @@ with tabs[0]:
     creditos = obtener_creditos(user_id)
 
     if transacciones:
-      df = pd.DataFrame(transacciones)
+        df = pd.DataFrame(transacciones)
         df["monto"] = df["monto"].astype(float)
 
         total_ingresos = df[df["tipo"] == "Ingreso"]["monto"].sum()
@@ -130,14 +130,12 @@ with tabs[0]:
             title="Ingresos vs Gastos por Mes",
         )
 
-        # Ajustar grosor de las barras
-        fig.update_traces(marker_line_width=0, width=0.35)  # barras delgadas
-
+        fig.update_traces(marker_line_width=0, width=0.35)
         fig.update_layout(
             xaxis_title="Mes",
             yaxis_title="Monto",
             legend_title="Tipo",
-            bargap=0.3  # espacio entre grupos de barras
+            bargap=0.3
         )
 
         st.plotly_chart(fig, use_container_width=True)
@@ -156,10 +154,9 @@ with tabs[1]:
         "Tipo",
         ["Ingreso", "Gasto"],
         horizontal=True,
-        key="transaccion_tipo_radio"
+        key="tab2_tipo_radio"
     )
 
-    # Listas de categorías por tipo
     categorias_ingreso = ["Sueldo", "Préstamo", "Comisión", "Otros"]
     categorias_gasto = [
         "Comida", "Ocio", "Gasolina", "Servicios Públicos",
@@ -167,19 +164,17 @@ with tabs[1]:
     ]
     categorias = categorias_ingreso if tipo == "Ingreso" else categorias_gasto
 
-    # Selectbox fuera del form para permitir re-render
     categoria_sel = st.selectbox(
         "Categoría",
         categorias,
-        key=f"transaccion_categoria_sel_{tipo}"
+        key=f"tab2_categoria_sel_{tipo}"
     )
 
-    with st.form("nueva_transaccion_form"):
-        # Campo de texto condicional dentro del form
+    with st.form("tab2_form"):
         if categoria_sel == "Otros":
             categoria = st.text_input(
                 "Especifica la categoría",
-                key=f"transaccion_categoria_otro_{tipo}"
+                key=f"tab2_categoria_otro_{tipo}"
             ).strip()
         else:
             categoria = categoria_sel
@@ -187,11 +182,11 @@ with tabs[1]:
         monto = st.number_input(
             "Monto",
             min_value=0.01,
-            key="transaccion_monto_input"
+            key="tab2_monto"
         )
         fecha = st.date_input(
             "Fecha",
-            key="transaccion_fecha_input"
+            key="tab2_fecha"
         )
         submitted = st.form_submit_button("Guardar", use_container_width=True)
 
@@ -208,7 +203,6 @@ with tabs[1]:
 
     # --- LISTADO DE TRANSACCIONES ---
     trans = obtener_transacciones(user_id)
-
     if not trans:
         st.info("No hay transacciones registradas aún.")
     else:
@@ -219,7 +213,6 @@ with tabs[1]:
 
         col_ing, col_gas = st.columns(2)
 
-        # Ingresos
         with col_ing:
             st.markdown("### 💵 Ingresos")
             ingresos = df[df["tipo"] == "Ingreso"]
@@ -238,7 +231,6 @@ with tabs[1]:
                         </div>
                     """, unsafe_allow_html=True)
 
-        # Gastos
         with col_gas:
             st.markdown("### 💸 Gastos")
             gastos = df[df["tipo"] == "Gasto"]
@@ -258,7 +250,7 @@ with tabs[1]:
                     """, unsafe_allow_html=True)
 
 # ==============================
-# TAB 3: HISTORIAL (nuevo)
+# TAB 3: HISTORIAL
 # ==============================
 with tabs[2]:
     st.header("📑 Historial de transacciones")
@@ -273,7 +265,6 @@ with tabs[2]:
 
         st.dataframe(df, use_container_width=True)
 
-        # Gráfico histórico
         df["mes"] = df["fecha"].dt.to_period("M").astype(str)
         resumen = df.groupby(["mes", "tipo"])["monto"].sum().reset_index()
         fig = px.line(resumen, x="mes", y="monto", color="tipo", markers=True,
@@ -288,13 +279,13 @@ with tabs[2]:
 with tabs[3]:
     st.header("💳 Créditos")
 
-    with st.form("nuevo_credito"):
-        nombre = st.text_input("Nombre del crédito")
-        monto = st.number_input("Monto", min_value=0.01)
-        tasa = st.number_input("Tasa de interés (%)", min_value=0.0)
-        plazo_meses = st.number_input("Plazo (meses)", min_value=1, step=1)
-        cuotas_pagadas = st.number_input("Cuotas pagadas", min_value=0, step=1)
-        cuota_mensual = st.number_input("Cuota mensual", min_value=0.01)
+    with st.form("tab4_form"):
+        nombre = st.text_input("Nombre del crédito", key="tab4_nombre")
+        monto = st.number_input("Monto", min_value=0.01, key="tab4_monto")
+        tasa = st.number_input("Tasa de interés (%)", min_value=0.0, key="tab4_tasa")
+        plazo_meses = st.number_input("Plazo (meses)", min_value=1, step=1, key="tab4_plazo")
+        cuotas_pagadas = st.number_input("Cuotas pagadas", min_value=0, step=1, key="tab4_cuotas")
+        cuota_mensual = st.number_input("Cuota mensual", min_value=0.01, key="tab4_cuota_mensual")
         submitted = st.form_submit_button("Guardar crédito")
         if submitted:
             resp = insertar_credito(user_id, nombre, monto, tasa, plazo_meses, cuotas_pagadas, cuota_mensual)
@@ -321,7 +312,7 @@ with tabs[3]:
             except Exception:
                 st.write(f"💰 Cuota mensual: {c['cuota_mensual']}")
 
-            if st.button(f"Registrar pago ➕", key=f"pago_{c['id']}"):
+            if st.button(f"Registrar pago ➕", key=f"tab4_pago_{c['id']}"):
                 registrar_pago(c['id'])
                 st.success("✅ Pago registrado correctamente")
                 st.rerun()
@@ -334,10 +325,10 @@ with tabs[3]:
 with tabs[4]:
     st.header("🎯 Metas de ahorro")
 
-    with st.form("nueva_meta"):
-        nombre = st.text_input("Nombre de la meta", key="nombre_meta")
-        monto = st.number_input("Monto objetivo", min_value=0.01, key="monto_meta")
-        ahorrado = st.number_input("Monto ahorrado inicial", min_value=0.0, key="ahorrado_meta")
+    with st.form("tab5_form"):
+        nombre = st.text_input("Nombre de la meta", key="tab5_nombre")
+        monto = st.number_input("Monto objetivo", min_value=0.01, key="tab5_monto")
+        ahorrado = st.number_input("Monto ahorrado inicial", min_value=0.0, key="tab5_ahorrado")
         submitted_meta = st.form_submit_button("Guardar meta")
         if submitted_meta:
             resp = insertar_meta(user_id, nombre, monto, ahorrado)
@@ -363,9 +354,9 @@ with tabs[4]:
             extra = st.number_input(
                 f"Agregar ahorro a {m['nombre']}",
                 min_value=0.0,
-                key=f"extra_{m['id']}"
+                key=f"tab5_extra_{m['id']}"
             )
-            if st.button(f"➕ Aumentar ahorro {m['nombre']}", key=f"btn_{m['id']}"):
+            if st.button(f"➕ Aumentar ahorro {m['nombre']}", key=f"tab5_btn_{m['id']}"):
                 actualizar_meta(m["id"], m["ahorrado"] + extra)
                 st.success("✅ Ahorro actualizado")
                 st.rerun()
