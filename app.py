@@ -151,43 +151,39 @@ with tabs[0]:
 with tabs[1]:
     st.header("📊 Transacciones")
 
-    # --- NOTE: tipo está fuera del form para forzar re-render cuando cambie ---
-    tipo = st.radio("Tipo", ["Ingreso", "Gasto"], horizontal=True, key="tipo_transaccion")
+# --- FORMULARIO DE TRANSACCIÓN ---
+tipo = st.radio("Tipo", ["Ingreso", "Gasto"], horizontal=True, key="tipo_transaccion")
 
-    # --- FORMULARIO ---
-    with st.form("nueva_transaccion"):
-        # listas de categorías por tipo (sin tocar el resto del código)
-        categorias_ingreso = ["Sueldo", "Préstamo", "Comisión", "Otros"]
-        categorias_gasto = ["Comida", "Ocio", "Gasolina", "Servicios Públicos",
-                            "Entretenimiento", "Pago Crédito", "Pago TC", "Otros"]
+# listas de categorías por tipo
+categorias_ingreso = ["Sueldo", "Préstamo", "Comisión", "Otros"]
+categorias_gasto = ["Comida", "Ocio", "Gasolina", "Servicios Públicos",
+                    "Entretenimiento", "Pago Crédito", "Pago TC", "Otros"]
+categorias = categorias_ingreso if tipo == "Ingreso" else categorias_gasto
 
-        categorias = categorias_ingreso if tipo == "Ingreso" else categorias_gasto
+# selectbox FUERA del formulario para permitir re-render
+categoria_sel = st.selectbox("Categoría", categorias, key=f"categoria_{tipo}")
 
-        # selectbox con key dinámica para forzar a Streamlit a renderizar widgets distintos según el tipo
-        categoria_sel = st.selectbox("Categoría", categorias, key=f"categoria_{tipo}")
+with st.form("nueva_transaccion"):
+    # campo de texto condicional dentro del form
+    if categoria_sel == "Otros":
+        categoria = st.text_input("Especifica la categoría", key=f"otros_{tipo}").strip()
+    else:
+        categoria = categoria_sel
 
-        # Si selecciona "Otros", mostramos un text_input con key dinámica
-        if categoria_sel == "Otros":
-            categoria = st.text_input("Especifica la categoría", key=f"otros_{tipo}").strip()
+    monto = st.number_input("Monto", min_value=0.01, key="monto_transaccion")
+    fecha = st.date_input("Fecha", key="fecha_transaccion")
+    submitted = st.form_submit_button("Guardar")
+
+    if submitted:
+        if categoria_sel == "Otros" and not categoria:
+            st.warning("⚠️ Debes especificar una categoría personalizada.")
         else:
-            categoria = categoria_sel
-
-        monto = st.number_input("Monto", min_value=0.01, key="monto_transaccion")
-        fecha = st.date_input("Fecha", key="fecha_transaccion")
-
-        submitted = st.form_submit_button("Guardar")
-        if submitted:
-            # validación: si escogió 'Otros' debe escribir la categoría
-            if categoria_sel == "Otros" and not categoria:
-                st.warning("⚠️ Debes especificar una categoría personalizada.")
+            resp = insertar_transaccion(user_id, tipo, categoria, monto, fecha)
+            if getattr(resp, "data", None) or resp is None:
+                st.success("Transacción guardada ✅")
+                st.rerun()
             else:
-                resp = insertar_transaccion(user_id, tipo, categoria, monto, fecha)
-                # tu implementación de insertar_transaccion puede devolver objeto con .data o None
-                if getattr(resp, "data", None) or resp is None:
-                    st.success("Transacción guardada ✅")
-                    st.rerun()
-                else:
-                    st.error("Error al guardar la transacción")
+                st.error("Error al guardar la transacción")
 
     # --- LISTADO DE TRANSACCIONES ---
     trans = obtener_transacciones(user_id)
