@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-import plotly.graph_objs as go
+import plotly.express as px
 from datetime import date
 from queries import (
     insertar_transaccion,
@@ -82,11 +82,9 @@ with tabs[0]:
         total_ingresos = df[df["tipo"] == "Ingreso"]["monto"].sum()
         total_gastos = df[df["tipo"] == "Gasto"]["monto"].sum()
         balance = total_ingresos - total_gastos
-        total_creditos = sum([c["monto"] for c in creditos]) if creditos else 0
+        total_creditos = sum([c.get("monto", 0) for c in creditos]) if creditos else 0
 
-        # ==========================
         # BLOQUE DE SUPERÁVIT / DÉFICIT
-        # ==========================
         if balance >= 0:
             porcentaje_ahorro = (balance / total_ingresos * 100) if total_ingresos > 0 else 0
             st.markdown(f"""
@@ -104,23 +102,18 @@ with tabs[0]:
 
         st.markdown("---")
 
-        # ==========================
-        # MÉTRICAS RESUMEN
-        # ==========================
+        # METRICAS RESUMEN
         col1, col2, col3, col4 = st.columns(4)
         col1.metric("Ingresos", f"${total_ingresos:,.2f}")
         col2.metric("Gastos", f"${total_gastos:,.2f}")
         col3.metric("Balance", f"${balance:,.2f}")
         col4.metric("Créditos", f"${total_creditos:,.2f}")
 
-        # ==========================
-        # GRÁFICO DE INGRESOS VS GASTOS
-        # ==========================
+        # GRAFICO INGRESOS VS GASTOS (por mes)
         df["fecha"] = pd.to_datetime(df["fecha"])
         df["mes"] = df["fecha"].dt.to_period("M").astype(str)
-        resumen = df.groupby(["mes", "tipo"])["monto"].sum().reset_index()
+        resumen = df.groupby(["mes", "tipo"]) ["monto"].sum().reset_index()
 
-        import plotly.express as px
         fig = px.bar(
             resumen,
             x="mes",
@@ -131,12 +124,7 @@ with tabs[0]:
         )
 
         fig.update_traces(marker_line_width=0, width=0.35)
-        fig.update_layout(
-            xaxis_title="Mes",
-            yaxis_title="Monto",
-            legend_title="Tipo",
-            bargap=0.3
-        )
+        fig.update_layout(xaxis_title="Mes", yaxis_title="Monto", legend_title="Tipo", bargap=0.3)
 
         st.plotly_chart(fig, use_container_width=True)
 
@@ -149,13 +137,8 @@ with tabs[0]:
 with tabs[1]:
     st.header("📊 Transacciones")
 
-    # --- FORMULARIO DE TRANSACCIÓN ---
-    tipo = st.radio(
-        "Tipo",
-        ["Ingreso", "Gasto"],
-        horizontal=True,
-        key="tab2_tipo_radio"
-    )
+    # FORMULARIO DE TRANSACCION
+    tipo = st.radio("Tipo", ["Ingreso", "Gasto"], horizontal=True, key="tab2_tipo_radio")
 
     categorias_ingreso = ["Sueldo", "Préstamo", "Comisión", "Otros"]
     categorias_gasto = [
@@ -164,30 +147,16 @@ with tabs[1]:
     ]
     categorias = categorias_ingreso if tipo == "Ingreso" else categorias_gasto
 
-    categoria_sel = st.selectbox(
-        "Categoría",
-        categorias,
-        key=f"tab2_categoria_sel_{tipo}"
-    )
+    categoria_sel = st.selectbox("Categoría", categorias, key=f"tab2_categoria_sel_{tipo}")
 
     with st.form("tab2_form"):
         if categoria_sel == "Otros":
-            categoria = st.text_input(
-                "Especifica la categoría",
-                key=f"tab2_categoria_otro_{tipo}"
-            ).strip()
+            categoria = st.text_input("Especifica la categoría", key=f"tab2_categoria_otro_{tipo}").strip()
         else:
             categoria = categoria_sel
 
-        monto = st.number_input(
-            "Monto",
-            min_value=0.01,
-            key="tab2_monto"
-        )
-        fecha = st.date_input(
-            "Fecha",
-            key="tab2_fecha"
-        )
+        monto = st.number_input("Monto", min_value=0.01, key="tab2_monto")
+        fecha = st.date_input("Fecha", key="tab2_fecha")
         submitted = st.form_submit_button("Guardar", use_container_width=True)
 
         if submitted:
@@ -201,59 +170,59 @@ with tabs[1]:
                 else:
                     st.error("Error al guardar la transacción")
 
-# --- LISTADO DE TRANSACCIONES ---
-trans = obtener_transacciones(user_id)
+    # LISTADO DE TRANSACCIONES (agrupado por categoría)
+    trans = obtener_transacciones(user_id)
 
-if not trans:
-    st.info("No hay transacciones registradas aún.")
-else:
-    st.subheader("📋 Historial de Transacciones")
+    if not trans:
+        st.info("No hay transacciones registradas aún.")
+    else:
+        st.subheader("📋 Historial de Transacciones")
 
-    df = pd.DataFrame(trans)
-    df["monto"] = df["monto"].astype(float)
+        df = pd.DataFrame(trans)
+        df["monto"] = df["monto"].astype(float)
 
-    # Agrupamos por tipo y categoría para sumar montos
-    df_agrupado = df.groupby(["tipo", "categoria"], as_index=False)["monto"].sum()
+        # Agrupar por tipo y categoria
+        df_agrupado = df.groupby(["tipo", "categoria"], as_index=False)["monto"].sum()
 
-    col_ing, col_gas = st.columns(2)
+        col_ing, col_gas = st.columns(2)
 
-    # Ingresos
-    with col_ing:
-        st.markdown("### 💵 Ingresos")
-        ingresos = df_agrupado[df_agrupado["tipo"] == "Ingreso"]
-        if ingresos.empty:
-            st.info("Sin ingresos registrados.")
-        else:
-            max_ingreso = ingresos["monto"].max()
-            for _, row in ingresos.iterrows():
-                porcentaje = (row["monto"] / max_ingreso) * 100 if max_ingreso else 0
-                st.markdown(f"""
-                    <div style='margin-bottom:10px;'>
-                        <b>{row['categoria']}</b> - ${row['monto']:,.2f}
-                        <div style='background:#ddd; border-radius:10px; height:20px;'>
-                            <div style='width:{porcentaje:.2f}%; background:#2ecc71; height:20px; border-radius:10px;'></div>
+        # Ingresos
+        with col_ing:
+            st.markdown("### 💵 Ingresos")
+            ingresos = df_agrupado[df_agrupado["tipo"] == "Ingreso"]
+            if ingresos.empty:
+                st.info("Sin ingresos registrados.")
+            else:
+                max_ingreso = ingresos["monto"].max()
+                for _, row in ingresos.iterrows():
+                    porcentaje = (row["monto"] / max_ingreso) * 100 if max_ingreso else 0
+                    st.markdown(f"""
+                        <div style='margin-bottom:10px;'>
+                            <b>{row['categoria']}</b> - ${row['monto']:,.2f}
+                            <div style='background:#ddd; border-radius:10px; height:20px;'>
+                                <div style='width:{porcentaje:.2f}%; background:#2ecc71; height:20px; border-radius:10px;'></div>
+                            </div>
                         </div>
-                    </div>
-                """, unsafe_allow_html=True)
+                    """, unsafe_allow_html=True)
 
-    # Gastos
-    with col_gas:
-        st.markdown("### 💸 Gastos")
-        gastos = df_agrupado[df_agrupado["tipo"] == "Gasto"]
-        if gastos.empty:
-            st.info("Sin gastos registrados.")
-        else:
-            max_gasto = gastos["monto"].max()
-            for _, row in gastos.iterrows():
-                porcentaje = (row["monto"] / max_gasto) * 100 if max_gasto else 0
-                st.markdown(f"""
-                    <div style='margin-bottom:10px;'>
-                        <b>{row['categoria']}</b> - ${row['monto']:,.2f}
-                        <div style='background:#ddd; border-radius:10px; height:20px;'>
-                            <div style='width:{porcentaje:.2f}%; background:#e74c3c; height:20px; border-radius:10px;'></div>
+        # Gastos
+        with col_gas:
+            st.markdown("### 💸 Gastos")
+            gastos = df_agrupado[df_agrupado["tipo"] == "Gasto"]
+            if gastos.empty:
+                st.info("Sin gastos registrados.")
+            else:
+                max_gasto = gastos["monto"].max()
+                for _, row in gastos.iterrows():
+                    porcentaje = (row["monto"] / max_gasto) * 100 if max_gasto else 0
+                    st.markdown(f"""
+                        <div style='margin-bottom:10px;'>
+                            <b>{row['categoria']}</b> - ${row['monto']:,.2f}
+                            <div style='background:#ddd; border-radius:10px; height:20px;'>
+                                <div style='width:{porcentaje:.2f}%; background:#e74c3c; height:20px; border-radius:10px;'></div>
+                            </div>
                         </div>
-                    </div>
-                """, unsafe_allow_html=True)
+                    """, unsafe_allow_html=True)
 
 # ==============================
 # TAB 3: HISTORIAL
@@ -263,8 +232,6 @@ with tabs[2]:
 
     trans = obtener_transacciones(user_id)
     if trans:
-        import plotly.express as px
-
         df = pd.DataFrame(trans)
         df["fecha"] = pd.to_datetime(df["fecha"])
         df = df.sort_values("fecha", ascending=False)
@@ -307,38 +274,50 @@ with tabs[3]:
             st.subheader(f"📌 {c['nombre']}")
             progreso = 0
             try:
-                if c["plazo_meses"]:
-                    progreso = min(1.0, max(0.0, c["cuotas_pagadas"] / c["plazo_meses"]))
+                if c.get("plazo_meses"):
+                    progreso = min(1.0, max(0.0, c.get("cuotas_pagadas", 0) / c.get("plazo_meses", 1)))
             except Exception:
                 progreso = 0
             st.progress(progreso)
-            st.write(f"Pagadas: {c['cuotas_pagadas']} / {c['plazo_meses']}")
+            st.write(f"Pagadas: {c.get('cuotas_pagadas', 0)} / {c.get('plazo_meses', 0)}")
             try:
-                st.write(f"💰 Cuota mensual: {float(c['cuota_mensual']):.2f}")
+                st.write(f"💰 Cuota mensual: {float(c.get('cuota_mensual', c.get('cuota', 0))):.2f}")
             except Exception:
-                st.write(f"💰 Cuota mensual: {c['cuota_mensual']}")
+                st.write(f"💰 Cuota mensual: {c.get('cuota_mensual', c.get('cuota', 0))}")
 
-if c:  # Si hay créditos registrados
-    if st.button(f"Registrar pago ➕", key=f"tab4_pago_{c['id']}"):
-        registrar_pago(c['id'])
+            # Botón para registrar pago (uno por crédito)
+            if st.button(f"Registrar pago ➕", key=f"tab4_pago_{c['id']}"):
+                # Registrar pago en la tabla de créditos
+                try:
+                    registrar_pago(c['id'])
+                except Exception as e:
+                    st.error(f"Error al registrar el pago en créditos: {e}")
 
-        # También insertamos el gasto correspondiente
-        try:
-            insertar_transaccion(
-                user_id=user_id,
-                tipo="Gasto",
-                categoria="Pago Crédito",
-                monto=float(c["cuota_mensual"]),
-                fecha=date.today()
-            )
-            st.success("✅ Pago registrado y gasto agregado correctamente")
-        except Exception as e:
-            st.error(f"⚠️ El pago se registró, pero no se pudo guardar el gasto: {e}")
+                # Determinar monto del gasto a insertar (intentar usar cuota_mensual)
+                monto_gasto = None
+                for campo in ("cuota_mensual", "cuota", "monto", "valor_cuota"):
+                    if c.get(campo) is not None:
+                        try:
+                            monto_gasto = float(c.get(campo))
+                            break
+                        except Exception:
+                            continue
+                if monto_gasto is None:
+                    monto_gasto = 0.0
 
-        st.rerun()
-else:
-    st.info("No tienes créditos registrados.")
+                # Insertar transacción tipo Gasto con el nombre del crédito
+                try:
+                    resp = insertar_transaccion(user_id, "Gasto", f"Pago {c['nombre']}", monto_gasto, date.today())
+                    if getattr(resp, "data", None) or resp is None:
+                        st.success("✅ Pago registrado y gasto agregado correctamente")
+                    else:
+                        st.warning("Pago registrado, pero no se confirmó la inserción del gasto")
+                except Exception as e:
+                    st.error(f"⚠️ El pago se registró en créditos, pero no se pudo guardar el gasto: {e}")
 
+                st.rerun()
+    else:
+        st.info("No tienes créditos registrados.")
 
 # ==============================
 # TAB 5: METAS DE AHORRO
@@ -365,12 +344,12 @@ with tabs[4]:
             st.subheader(f"🎯 {m['nombre']}")
             progreso = 0
             try:
-                if m["monto"] > 0:
-                    progreso = min(1.0, max(0.0, m["ahorrado"] / m["monto"]))
+                if m.get("monto", 0) > 0:
+                    progreso = min(1.0, max(0.0, m.get("ahorrado", 0) / m.get("monto", 1)))
             except Exception:
                 progreso = 0
             st.progress(progreso)
-            st.write(f"💰 Ahorrado: {m['ahorrado']} / {m['monto']}")
+            st.write(f"💰 Ahorrado: {m.get('ahorrado', 0)} / {m.get('monto', 0)}")
 
             extra = st.number_input(
                 f"Agregar ahorro a {m['nombre']}",
@@ -378,7 +357,7 @@ with tabs[4]:
                 key=f"tab5_extra_{m['id']}"
             )
             if st.button(f"➕ Aumentar ahorro {m['nombre']}", key=f"tab5_btn_{m['id']}"):
-                actualizar_meta(m["id"], m["ahorrado"] + extra)
+                actualizar_meta(m['id'], m.get('ahorrado', 0) + extra)
                 st.success("✅ Ahorro actualizado")
                 st.rerun()
     else:
