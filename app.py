@@ -318,12 +318,27 @@ with tabs[3]:
             except Exception:
                 st.write(f"💰 Cuota mensual: {c['cuota_mensual']}")
 
-            if st.button(f"Registrar pago ➕", key=f"tab4_pago_{c['id']}"):
-                registrar_pago(c['id'])
-                st.success("✅ Pago registrado correctamente")
-                st.rerun()
-    else:
-        st.info("No tienes créditos registrados.")
+if c:  # Si hay créditos registrados
+    if st.button(f"Registrar pago ➕", key=f"tab4_pago_{c['id']}"):
+        registrar_pago(c['id'])
+
+        # También insertamos el gasto correspondiente
+        try:
+            insertar_transaccion(
+                user_id=user_id,
+                tipo="Gasto",
+                categoria="Pago Crédito",
+                monto=float(c["cuota_mensual"]),
+                fecha=date.today()
+            )
+            st.success("✅ Pago registrado y gasto agregado correctamente")
+        except Exception as e:
+            st.error(f"⚠️ El pago se registró, pero no se pudo guardar el gasto: {e}")
+
+        st.rerun()
+else:
+    st.info("No tienes créditos registrados.")
+
 
 # ==============================
 # TAB 5: METAS DE AHORRO
