@@ -140,7 +140,7 @@ with tabs[1]:
     # FORMULARIO DE TRANSACCION
     tipo = st.radio("Tipo", ["Ingreso", "Gasto"], horizontal=True, key="tab2_tipo_radio")
 
-    categorias_ingreso = ["Sueldo", "Préstamo", "Comisión", "Otros"]
+    categorias_ingreso = ["Salario", "Préstamo", "Comisión", "Otros"]
     categorias_gasto = [
         "Comida", "Ocio", "Gasolina", "Servicios Públicos",
         "Entretenimiento", "Pago Crédito", "Pago TC", "Otros"
