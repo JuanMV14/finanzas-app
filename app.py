@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from datetime import date
+from datetime import date, datetime
 from queries import (
     insertar_transaccion,
     insertar_credito,
@@ -78,9 +78,15 @@ with tabs[0]:
     if transacciones:
         df = pd.DataFrame(transacciones)
         df["monto"] = df["monto"].astype(float)
+        df["fecha"] = pd.to_datetime(df["fecha"])
+        df["mes"] = df["fecha"].dt.to_period("M").astype(str)
 
-        total_ingresos = df[df["tipo"] == "Ingreso"]["monto"].sum()
-        total_gastos = df[df["tipo"] == "Gasto"]["monto"].sum()
+        # Mes actual
+        mes_actual = datetime.today().strftime("%Y-%m")
+        df_mes = df[df["mes"] == mes_actual]
+
+        total_ingresos = df_mes[df_mes["tipo"] == "Ingreso"]["monto"].sum()
+        total_gastos = df_mes[df_mes["tipo"] == "Gasto"]["monto"].sum()
         balance = total_ingresos - total_gastos
         total_creditos = sum([c.get("monto", 0) for c in creditos]) if creditos else 0
 
@@ -109,23 +115,16 @@ with tabs[0]:
         col3.metric("Balance", f"${balance:,.2f}")
         col4.metric("Créditos", f"${total_creditos:,.2f}")
 
-        # GRAFICO INGRESOS VS GASTOS (por mes)
-        df["fecha"] = pd.to_datetime(df["fecha"])
-        df["mes"] = df["fecha"].dt.to_period("M").astype(str)
-        resumen = df.groupby(["mes", "tipo"]) ["monto"].sum().reset_index()
-
+        # GRAFICO INGRESOS VS GASTOS (solo mes actual)
+        resumen = df_mes.groupby(["mes", "tipo"])["monto"].sum().reset_index()
         fig = px.bar(
             resumen,
             x="mes",
             y="monto",
             color="tipo",
             barmode="group",
-            title="Ingresos vs Gastos por Mes",
+            title=f"Ingresos vs Gastos - {mes_actual}",
         )
-
-        fig.update_traces(marker_line_width=0, width=0.35)
-        fig.update_layout(xaxis_title="Mes", yaxis_title="Monto", legend_title="Tipo", bargap=0.3)
-
         st.plotly_chart(fig, use_container_width=True)
 
     else:
@@ -140,7 +139,7 @@ with tabs[1]:
     # FORMULARIO DE TRANSACCION
     tipo = st.radio("Tipo", ["Ingreso", "Gasto"], horizontal=True, key="tab2_tipo_radio")
 
-    categorias_ingreso = ["Salario", "Préstamo", "Comisión", "Otros"]
+    categorias_ingreso = ["Sueldo", "Préstamo", "Comisión", "Otros"]
     categorias_gasto = [
         "Comida", "Ocio", "Gasolina", "Servicios Públicos",
         "Entretenimiento", "Pago Crédito", "Pago TC", "Otros"
@@ -170,7 +169,7 @@ with tabs[1]:
                 else:
                     st.error("Error al guardar la transacción")
 
-    # LISTADO DE TRANSACCIONES (agrupado por categoría)
+    # LISTADO DE TRANSACCIONES (solo mes actual)
     trans = obtener_transacciones(user_id)
 
     if not trans:
@@ -180,9 +179,14 @@ with tabs[1]:
 
         df = pd.DataFrame(trans)
         df["monto"] = df["monto"].astype(float)
+        df["fecha"] = pd.to_datetime(df["fecha"])
+        df["mes"] = df["fecha"].dt.to_period("M").astype(str)
+
+        mes_actual = datetime.today().strftime("%Y-%m")
+        df_mes = df[df["mes"] == mes_actual]
 
         # Agrupar por tipo y categoria
-        df_agrupado = df.groupby(["tipo", "categoria"], as_index=False)["monto"].sum()
+        df_agrupado = df_mes.groupby(["tipo", "categoria"], as_index=False)["monto"].sum()
 
         col_ing, col_gas = st.columns(2)
 
@@ -225,7 +229,7 @@ with tabs[1]:
                     """, unsafe_allow_html=True)
 
 # ==============================
-# TAB 3: HISTORIAL
+# TAB 3: HISTORIAL (todos los meses)
 # ==============================
 with tabs[2]:
     st.header("📑 Historial de transacciones")
@@ -285,15 +289,13 @@ with tabs[3]:
             except Exception:
                 st.write(f"💰 Cuota mensual: {c.get('cuota_mensual', c.get('cuota', 0))}")
 
-            # Botón para registrar pago (uno por crédito)
+            # Botón para registrar pago
             if st.button(f"Registrar pago ➕", key=f"tab4_pago_{c['id']}"):
-                # Registrar pago en la tabla de créditos
                 try:
                     registrar_pago(c['id'])
                 except Exception as e:
                     st.error(f"Error al registrar el pago en créditos: {e}")
 
-                # Determinar monto del gasto a insertar (intentar usar cuota_mensual)
                 monto_gasto = None
                 for campo in ("cuota_mensual", "cuota", "monto", "valor_cuota"):
                     if c.get(campo) is not None:
@@ -305,7 +307,6 @@ with tabs[3]:
                 if monto_gasto is None:
                     monto_gasto = 0.0
 
-                # Insertar transacción tipo Gasto con el nombre del crédito
                 try:
                     resp = insertar_transaccion(user_id, "Gasto", f"Pago {c['nombre']}", monto_gasto, date.today())
                     if getattr(resp, "data", None) or resp is None:
